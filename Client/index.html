@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Auto Trade</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="logo">AT</div>
+        <div class="brand-text">
+          <h1>Auto Trade</h1>
+          <p>India (IST) intraday</p>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-view="dashboard">
+          <span>🏠</span><span class="label">Dashboard</span>
+        </button>
+        <button class="nav-item" data-view="algorithm">
+          <span>🧠</span><span class="label">Algorithm</span>
+        </button>
+        <button class="nav-item" data-view="market">
+          <span>📊</span><span class="label">Market Data</span>
+        </button>
+        <button class="nav-item" data-view="orders">
+          <span>📝</span><span class="label">Orders</span>
+        </button>
+        <button class="nav-item" data-view="reports">
+          <span>📄</span><span class="label">Reports</span>
+        </button>
+        <button class="nav-item" data-view="settings">
+          <span>⚙️</span><span class="label">Settings</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <div id="backendBadge" class="badge badge-online">
+          <span class="dot"></span> Backend Online
+        </div>
+        <div class="small">v0.1 UI demo</div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="main">
+      <header class="appbar">
+        <!-- 3-line button that controls the sidebar -->
+        <button id="dotToggle" class="dot3-btn" aria-label="Toggle sidebar">
+          <span class="bar"></span><span class="bar"></span
+          ><span class="bar"></span>
+        </button>
+
+        <div class="titles">
+          <h2 id="pageTitle">Dashboard</h2>
+          <p class="muted">Auto Trade — frontend mock</p>
+        </div>
+
+        <div class="appbar-actions">
+          <button id="themeToggle" class="ghost-btn" aria-label="Toggle theme">
+            🌙
+          </button>
+        </div>
+      </header>
+
+      <main class="wrap">
+        <!-- ========== DASHBOARD ========== -->
+        <section class="view active" data-view="dashboard">
+          <!-- Top header bar -->
+          <div class="dash-bar card">
+            <div>
+              <h1 class="dash-title">Trading Dashboard</h1>
+              <p class="muted">Live automated trading monitoring</p>
+            </div>
+
+            <ul class="dash-meta">
+              <li>
+                <div class="meta-label">Market Status</div>
+                <div class="meta-value">
+                  <span class="dot dot-red"></span>
+                  <span id="mktStatus">CLOSED</span>
+                </div>
+              </li>
+              <li>
+                <div class="meta-label">Current Time</div>
+                <div class="meta-value" id="nowTime">—</div>
+              </li>
+              <li>
+                <div class="meta-label">Next Square-off</div>
+                <div class="meta-value warn" id="nextSqOff">—</div>
+              </li>
+            </ul>
+          </div>
+
+          <!-- 2 x 2 KPIs -->
+          <div class="dash-kpis">
+            <div class="stat-card card">
+              <div class="sc-title">Today's P&L</div>
+              <div class="sc-value pos" id="kpiPnl">₹0.00</div>
+              <div class="sc-sub pos" id="kpiPnlDelta">
+                +12.5% from yesterday
+              </div>
+            </div>
+
+            <div class="stat-card card">
+              <div class="sc-title">Active Positions</div>
+              <div class="sc-value" id="kpiPos">0</div>
+              <div class="sc-sub">
+                Total value: <span id="kpiPosValue">₹0</span>
+              </div>
+            </div>
+
+            <div class="stat-card card">
+              <div class="sc-title">Completed Trades</div>
+              <div class="sc-value" id="kpiTrades">0</div>
+              <div class="sc-sub">
+                <span id="kpiProf">9</span> profitable •
+                <span id="kpiLoss">3</span> loss
+              </div>
+            </div>
+
+            <div class="stat-card card">
+              <div class="sc-title">Algorithm Status</div>
+              <div class="sc-value dim" id="kpiAlgo">INACTIVE</div>
+              <div class="sc-sub">
+                Running for: <span id="kpiRun">1h 30m</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live market data (full width) -->
+          <div class="card md-card">
+            <div class="md-head">
+              <h3>Live Market Data</h3>
+              <div class="live-badge"><span class="dot"></span> Live</div>
+            </div>
+            <div class="md-table-wrap">
+              <table class="md-table">
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th>LTP</th>
+                    <th>Change</th>
+                    <th>RSI</th>
+                    <th>MACD</th>
+                    <th>Signal</th>
+                  </tr>
+                </thead>
+                <tbody id="dash-md-body">
+                  <tr class="empty-row">
+                    <td colspan="6">No market data available</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Active positions (full width) -->
+          <div class="card positions-card">
+            <div class="md-head">
+              <h3>Active Positions</h3>
+            </div>
+            <div class="md-table-wrap">
+              <table class="md-table">
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th>Type</th>
+                    <th>Qty</th>
+                    <th>Avg Price</th>
+                    <th>LTP</th>
+                    <th>P&L</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="dash-positions">
+                  <tr class="empty-row">
+                    <td colspan="7">No active positions</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========== ALGORITHM ========== -->
+        <section class="view" data-view="algorithm">
+          <div class="page-header">
+            <h2 class="page-title">Algorithm Configuration</h2>
+            <p class="subtitle">
+              Configure your trading algorithm settings and parameters
+            </p>
+          </div>
+
+          <section class="algo-grid">
+            <div class="card algo-card">
+              <h3>Algorithm Control</h3>
+
+              <div class="row-between">
+                <div class="label">Auto Trading</div>
+                <label class="switch">
+                  <input id="algoToggle" type="checkbox" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <div class="field">
+                <label>Risk Level</label>
+                <div class="range-wrap">
+                  <input
+                    id="riskRange"
+                    type="range"
+                    min="0"
+                    max="2"
+                    value="1"
+                    step="1"
+                  />
+                  <div id="riskBadge" class="badge-pill">Medium</div>
+                </div>
+              </div>
+
+              <div class="kv-pair">
+                <div>
+                  <span class="muted">Stop Loss</span><strong>2%</strong>
+                </div>
+                <div>
+                  <span class="muted">Target Profit</span><strong>5%</strong>
+                </div>
+              </div>
+
+              <button id="btnEmergency" class="btn btn-danger block">
+                Emergency Stop
+              </button>
+            </div>
+
+            <div class="card algo-card">
+              <h3>Trading Parameters</h3>
+              <form id="algoForm" class="form-grid">
+                <div class="field">
+                  <label>Capital per Trade</label>
+                  <input id="capPerTrade" type="text" value="₹10,000" />
+                </div>
+                <div class="field">
+                  <label>Max Positions</label>
+                  <input id="maxPositions" type="number" value="5" min="1" />
+                </div>
+                <div class="field">
+                  <label>Stop Loss %</label>
+                  <input
+                    id="slPct"
+                    type="number"
+                    value="2"
+                    min="0"
+                    step="0.1"
+                  />
+                </div>
+                <div class="field">
+                  <label>Target Profit %</label>
+                  <input
+                    id="tpPct"
+                    type="number"
+                    value="5"
+                    min="0"
+                    step="0.1"
+                  />
+                </div>
+                <div class="field field-full">
+                  <label>Trading Symbols (comma-separated)</label>
+                  <input
+                    id="symbols"
+                    type="text"
+                    value="RELIANCE,TCS,INFY,HDFC,ITC,WIPRO"
+                  />
+                </div>
+                <div class="field field-full">
+                  <button type="submit" class="btn btn-primary block">
+                    Save Settings
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+        </section>
+
+        <!-- ========== MARKET DATA ========== -->
+        <section class="view" data-view="market">
+          <div class="page-header">
+            <h2 class="page-title">Market Data</h2>
+            <p class="subtitle">
+              Real-time market data with technical indicators
+            </p>
+          </div>
+
+          <div class="card md-card">
+            <h3>Live Tickers</h3>
+            <div class="ticker-row">
+              <div class="pill">
+                <span class="pill-name">NIFTY</span
+                ><span id="md-nifty" class="pill-value up">₹—</span>
+              </div>
+              <div class="pill">
+                <span class="pill-name">BANKNIFTY</span
+                ><span id="md-bank" class="pill-value up">₹—</span>
+              </div>
+              <div class="pill">
+                <span class="pill-name">RELIANCE</span
+                ><span id="md-rel" class="pill-value up">₹—</span>
+              </div>
+              <div class="pill">
+                <span class="pill-name">INFY</span
+                ><span id="md-infy" class="pill-value up">₹—</span>
+              </div>
+            </div>
+            <p class="muted" style="margin-top: 10px">
+              Values are simulated for UI.
+            </p>
+          </div>
+
+          <div class="card md-card">
+            <h3>Technical Snapshot</h3>
+            <div class="tech-list">
+              <div class="tech-pill">
+                <span>RSI(14):</span> <strong id="md-rsi">—</strong>
+              </div>
+              <div class="tech-pill">
+                <span>MACD:</span> <strong id="md-macd">—</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="card md-card">
+            <div class="md-head">
+              <h3>Live Market Data</h3>
+              <div class="live-badge"><span class="dot"></span> Live</div>
+            </div>
+            <div class="md-table-wrap">
+              <table class="md-table">
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th>LTP</th>
+                    <th>Change</th>
+                    <th>RSI</th>
+                    <th>MACD</th>
+                    <th>Signal</th>
+                  </tr>
+                </thead>
+                <tbody id="md-body">
+                  <tr class="empty-row">
+                    <td colspan="6">No market data available</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card md-card">
+            <h3>Market Overview</h3>
+            <div class="overview-row">
+              <div class="overview-cell">
+                <div class="ov-value pos" id="ov-bse">BSE</div>
+                <div class="ov-label">Market Open</div>
+              </div>
+              <div class="overview-cell">
+                <div class="ov-value pos" id="ov-nse">NSE</div>
+                <div class="ov-label">Market Open</div>
+              </div>
+              <div class="overview-cell">
+                <div class="ov-value" id="ov-active">6,247</div>
+                <div class="ov-label">Active Stocks</div>
+              </div>
+              <div class="overview-cell">
+                <div class="ov-value warn" id="ov-sent">75%</div>
+                <div class="ov-label">Market Sentiment</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========== ORDERS ========== -->
+        <section class="view" data-view="orders">
+          <div class="page-header">
+            <h2 class="page-title">Orders &amp; Trades</h2>
+            <p class="subtitle">
+              View all your trading orders and transaction history
+            </p>
+          </div>
+
+          <div class="card orders-card">
+            <div class="orders-head"><h3>Recent Orders</h3></div>
+            <div class="orders-table-wrap">
+              <table class="orders-table">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Symbol</th>
+                    <th>Type</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody id="ordersBody">
+                  <tr class="empty-row">
+                    <td colspan="7">No orders found</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========== REPORTS ========== -->
+        <section class="view" data-view="reports">
+          <div class="page-header">
+            <h2 class="page-title">Trading Reports</h2>
+            <p class="subtitle">
+              Analyze your trading performance and generate reports
+            </p>
+          </div>
+
+          <div class="card report-bar">
+            <h3>Today's Trading Summary</h3>
+            <div class="spacer"></div>
+            <button id="btnDownloadReport" class="btn btn-primary">
+              Download Report
+            </button>
+            <div class="report-kpis">
+              <div class="stat">
+                <div id="rTotalProfit" class="stat-value pos">₹0.00</div>
+                <div class="stat-label">Total Profit</div>
+              </div>
+              <div class="stat">
+                <div id="rTotalTrades" class="stat-value">0</div>
+                <div class="stat-label">Total Trades</div>
+              </div>
+              <div class="stat">
+                <div id="rWinRate" class="stat-value">0%</div>
+                <div class="stat-label">Win Rate</div>
+              </div>
+              <div class="stat">
+                <div id="rAvgTrade" class="stat-value">₹0.00</div>
+                <div class="stat-label">Avg Profit/Trade</div>
+              </div>
+            </div>
+          </div>
+
+          <section class="report-grid">
+            <div class="card report-card">
+              <div class="report-title">Monthly Performance</div>
+              <ul class="report-list">
+                <li>
+                  <span>Total P&amp;L</span
+                  ><strong id="mpPnl" class="pos">₹25,340</strong>
+                </li>
+                <li>
+                  <span>Total Trades</span><strong id="mpTrades">156</strong>
+                </li>
+                <li>
+                  <span>Win Rate</span><strong id="mpWinRate">68%</strong>
+                </li>
+                <li>
+                  <span>Best Day</span
+                  ><strong id="mpBestDay" class="pos">₹3,240</strong>
+                </li>
+              </ul>
+            </div>
+
+            <div class="card report-card">
+              <div class="report-title">Risk Metrics</div>
+              <ul class="report-list">
+                <li>
+                  <span>Max Drawdown</span
+                  ><strong id="rkDrawdown" class="neg">-₹1,240</strong>
+                </li>
+                <li>
+                  <span>Sharpe Ratio</span><strong id="rkSharpe">1.42</strong>
+                </li>
+                <li>
+                  <span>Volatility</span><strong id="rkVol">12.3%</strong>
+                </li>
+                <li>
+                  <span>Risk/Reward</span
+                  ><strong id="rkRR" class="pos">1:2.1</strong>
+                </li>
+              </ul>
+            </div>
+          </section>
+        </section>
+
+        <!-- ========== SETTINGS ========== -->
+        <section class="view" data-view="settings">
+          <div class="page-header">
+            <h2 class="page-title">Settings</h2>
+            <p class="subtitle">
+              Configure your trading app preferences and broker connection
+            </p>
+          </div>
+
+          <section class="settings-grid">
+            <div class="card settings-card">
+              <h3>Broker Configuration</h3>
+              <form id="brokerForm" class="form-grid">
+                <div class="field field-full">
+                  <label>Broker</label
+                  ><input
+                    id="setBroker"
+                    type="text"
+                    placeholder="Zerodha / Upstox / Angel One"
+                    value="Zerodha / Upstox / Angel One"
+                  />
+                </div>
+                <div class="field field-full">
+                  <label>API Key</label
+                  ><input
+                    id="setApiKey"
+                    type="password"
+                    placeholder="Enter your broker API key"
+                  />
+                </div>
+                <div class="field field-full">
+                  <label>API Secret</label
+                  ><input
+                    id="setApiSecret"
+                    type="password"
+                    placeholder="Enter your broker API secret"
+                  />
+                </div>
+                <div class="field field-full">
+                  <label>User ID</label
+                  ><input
+                    id="setUserId"
+                    type="text"
+                    placeholder="Enter your broker user ID"
+                  />
+                </div>
+                <div class="field field-full">
+                  <button
+                    id="btnTestConn"
+                    type="button"
+                    class="btn btn-primary block"
+                  >
+                    Test Connection
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div class="card settings-card">
+              <h3>Notifications</h3>
+              <div class="row-between setting-line">
+                <div class="label">Email Notifications</div>
+                <label class="switch"
+                  ><input id="emailNoti" type="checkbox" /><span
+                    class="slider"
+                  ></span
+                ></label>
+              </div>
+              <div class="row-between setting-line">
+                <div class="label">Trade Alerts</div>
+                <label class="switch"
+                  ><input id="tradeAlerts" type="checkbox" checked /><span
+                    class="slider"
+                  ></span
+                ></label>
+              </div>
+              <div class="row-between setting-line">
+                <div class="label">Daily Reports</div>
+                <label class="switch"
+                  ><input id="dailyReports" type="checkbox" checked /><span
+                    class="slider"
+                  ></span
+                ></label>
+              </div>
+              <div class="field field-full">
+                <label>Email Address</label
+                ><input
+                  id="emailAddr"
+                  type="email"
+                  placeholder="your@email.com"
+                />
+              </div>
+            </div>
+
+            <div class="card settings-card">
+              <h3>Risk Management</h3>
+              <form id="riskForm" class="form-grid">
+                <div class="field field-full">
+                  <label>Daily Loss Limit</label
+                  ><input id="dailyLoss" type="text" value="₹5,000" />
+                </div>
+                <div class="field field-full">
+                  <label>Maximum Capital Usage</label
+                  ><input id="capUsage" type="text" value="₹50,000" />
+                </div>
+              </form>
+            </div>
+
+            <div class="card settings-card">
+              <h3>System Preferences</h3>
+              <div class="row-between setting-line">
+                <div class="label">Dark Mode</div>
+                <label class="switch"
+                  ><input id="prefDark" type="checkbox" checked /><span
+                    class="slider"
+                  ></span
+                ></label>
+              </div>
+              <div class="row-between setting-line">
+                <div class="label">Sound Alerts</div>
+                <label class="switch"
+                  ><input id="prefSound" type="checkbox" /><span
+                    class="slider"
+                  ></span
+                ></label>
+              </div>
+              <div class="field field-full">
+                <label>Data Refresh Rate</label
+                ><input
+                  id="refreshRate"
+                  type="text"
+                  value="5 seconds"
+                  readonly
+                />
+              </div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

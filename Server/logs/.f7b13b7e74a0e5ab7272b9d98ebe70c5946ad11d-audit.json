@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "logs/.f7b13b7e74a0e5ab7272b9d98ebe70c5946ad11d-audit.json",
+    "files": [
+        {
+            "date": 1758784876600,
+            "name": "logs/autotrade-2025-09-25.log",
+            "hash": "a6072110a060ba08729c615fb71a5a6238bbd77f9308c18ae5835c397fbec8ba"
+        }
+    ],
+    "hashType": "sha256"
+}
