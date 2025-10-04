@@ -4,6 +4,7 @@ import { buildApp } from "./app.js";
 import { connectDB, isDbConnected } from "./db.js";
 import { config } from "./config.js";
 import { startLoop, getEngineState } from "./services/engineLoop.js";
+import { enableMarketScheduler } from "./services/marketScheduler.js";
 
 process.on("unhandledRejection", (e) => {
   console.error("[unhandledRejection]", e?.message || e);
@@ -30,6 +31,12 @@ async function start() {
     console.log(`[HTTP] Listening on port ${config.port}`);
   });
 
+  app.listen(config.port, () => {
+  console.log(`[HTTP] Listening on port ${config.port}`);
+});
+
+  
+
   // Start engine ONLY when DB is connected
   const kickEngine = async () => {
     try {
@@ -49,4 +56,5 @@ async function start() {
   }
 }
 
+enableMarketScheduler();
 start();
