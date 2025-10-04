@@ -3,8 +3,7 @@ import mongoose from "mongoose";
 import { buildApp } from "./app.js";
 import { connectDB, isDbConnected } from "./db.js";
 import { config } from "./config.js";
-import { startLoop, getEngineState } from "./services/engineLoop.js";
-import { enableMarketScheduler } from "./services/marketScheduler.js";
+import { startMarketHoursGuard } from "./services/marketHoursGuard.js"; // ← NEW guard import
 
 process.on("unhandledRejection", (e) => {
   console.error("[unhandledRejection]", e?.message || e);
@@ -14,47 +13,40 @@ process.on("uncaughtException", (e) => {
 });
 
 async function start() {
+  // 1) DB connect (with your existing retry logic)
   try {
-    await connectDB(); // has retry logic
+    await connectDB();
   } catch (err) {
     console.error("Fatal: could not connect to MongoDB after retries:", err?.message || err);
   }
 
+  // 2) Build app & health probe
   const app = buildApp();
-
-  // DB health endpoint
   app.get("/health/db", (_req, res) => {
     res.json({ mongo: isDbConnected() ? "up" : "down" });
   });
 
+  // 3) Single HTTP listener (removed duplicate)
   app.listen(config.port, () => {
     console.log(`[HTTP] Listening on port ${config.port}`);
   });
 
-  app.listen(config.port, () => {
-  console.log(`[HTTP] Listening on port ${config.port}`);
-});
-
-  
-
-  // Start engine ONLY when DB is connected
-  const kickEngine = async () => {
+  // 4) Start the market-hours guard once DB is up
+  const bootGuards = async () => {
     try {
-      console.log("[Engine] DB up, starting loop…");
-      await startLoop();
-      await getEngineState();
+      console.log("[Boot] DB up, starting market-hours guard…");
+      startMarketHoursGuard(); // auto start/stop engine based on IST market hours
     } catch (e) {
-      console.error("[Engine] failed to start:", e?.message || e);
+      console.error("[Boot] failed to start market-hours guard:", e?.message || e);
     }
   };
 
   if (isDbConnected()) {
-    kickEngine();
+    bootGuards();
   } else {
-    console.warn("[Engine] Deferring start until DB connects…");
-    mongoose.connection.once("open", kickEngine);
+    console.warn("[Boot] Deferring guard start until DB connects…");
+    mongoose.connection.once("open", bootGuards);
   }
 }
 
-enableMarketScheduler();
 start();

@@ -271,11 +271,16 @@ async function maybeOpenNewPositions({ capitalPerTrade, maxPositions }) {
 // ------- tick loop -------
 async function tick() {
   try {
-    await markToMarket();   // keep LTP & pnl fresh
-    await eodIfNeeded();    // non-negative close + EOD tasks
+    await markToMarket();
+    await eodIfNeeded();
 
-    // Only trade while engine is running and market is open
-    if (!RUNNING || !isMarketOpenIST(nowIST())) return;
+    // ⛔ Off-hours? Stop and show INACTIVE so UI is truthful
+    if (!isMarketOpenIST(nowIST())) {
+      if (RUNNING) await stopLoop();
+      return;
+    }
+
+    if (!RUNNING) return;
 
     const conf = await loadRuntimeConfig();
     await enforceRisk(conf);
@@ -285,6 +290,7 @@ async function tick() {
     console.error("[EngineTickError]", err?.message || err);
   }
 }
+
 
 // ------- public API -------
 export async function startLoop() {
