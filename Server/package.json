@@ -9,11 +9,14 @@
     "dev": "NODE_ENV=development nodemon src/server.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "date-fns": "^3.6.0",
     "dotenv": "^16.4.5",
     "eventemitter3": "^5.0.1",
     "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
     "kiteconnect": "^5.1.0",
     "mongodb": "^6.8.0",
     "mongoose": "^8.6.3",

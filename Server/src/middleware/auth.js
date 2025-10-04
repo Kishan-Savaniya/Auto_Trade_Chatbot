@@ -1,13 +1,14 @@
+// Server/src/middleware/auth.js
 import jwt from "jsonwebtoken";
-export function requireAuth(req, res, next) {
-  const h = req.headers.authorization || "";
-  const token = h.startsWith("Bearer ") ? h.slice(7) : "";
-  if (!token) return res.status(401).json({ error: "missing token" });
+
+export function authRequired(req, res, next) {
   try {
-    const { uid } = jwt.verify(token, process.env.JWT_SECRET || "dev");
-    req.userId = uid;
+    const token = req.cookies?.at;
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
+    const payload = jwt.verify(token, process.env.JWT_SECRET || "dev_secret");
+    req.user = { id: payload.sub, username: payload.username, role: payload.role || "user" };
     next();
-  } catch {
-    res.status(401).json({ error: "invalid token" });
+  } catch (e) {
+    return res.status(401).json({ error: "Unauthorized" });
   }
 }
