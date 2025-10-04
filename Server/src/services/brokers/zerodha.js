@@ -1,46 +1,95 @@
+// Server/src/services/brokers/zerodha.js
+// Zerodha trading adapter with minimal methods your routes expect.
+// Adds loginUrl / handleCallback / isAuthenticated helpers so broker routes work.
+
 import EventEmitter from "events";
 import { KiteConnect, KiteTicker } from "kiteconnect";
 import fs from "fs";
 import path from "path";
 
-export default class Zerodha extends EventEmitter {
+export class ZerodhaAdapter extends EventEmitter {
   constructor(opts = {}) {
     super();
     this.opts = {
       apiKey: process.env.KITE_API_KEY,
       apiSecret: process.env.KITE_API_SECRET,
-      accessToken: process.env.KITE_ACCESS_TOKEN, // set after login
+      accessToken: process.env.KITE_ACCESS_TOKEN, // set after OAuth
       ...opts
     };
     this.kc = null;
     this.ticker = null;
-    this.map = {};
-    this.quoteCache = new Map(); // symbol -> ltp
+    this.map = {};                      // { "RELIANCE": { token, exchange } }
+    this.quoteCache = new Map();        // symbol -> ltp
     this.connected = false;
+    this._pendingSubs = [];
+    this._rev = null;                   // token -> symbol map
   }
 
   async init() {
-    if (!this.opts.apiKey || !this.opts.accessToken) {
-      console.warn("[zerodha] missing apiKey/accessToken -> staying disconnected");
+    // Load instrument map (optional but recommended)
+    try {
+      const p = path.join(process.cwd(), "data", "kite-map.json");
+      if (fs.existsSync(p)) this.map = JSON.parse(fs.readFileSync(p, "utf8"));
+    } catch (e) {
+      console.warn("[zerodha] failed to load instrument map:", e?.message || e);
+    }
+
+    // If we don't have API key yet, we can still respond to loginUrl().
+    if (!this.opts.apiKey) {
+      console.warn("[zerodha] missing KITE_API_KEY");
       return;
     }
 
-    // Load instrument map
-    const p = path.join(process.cwd(), "data", "kite-map.json");
-    if (fs.existsSync(p)) this.map = JSON.parse(fs.readFileSync(p, "utf8"));
-
-    // REST client
+    // REST client (without accessToken we can still do loginUrl)
     this.kc = new KiteConnect({ api_key: this.opts.apiKey });
-    this.kc.setAccessToken(this.opts.accessToken);
 
-    // WS ticker
+    if (this.opts.accessToken) {
+      this.kc.setAccessToken(this.opts.accessToken);
+      await this._startTicker();
+    }
+  }
+
+  /** OAuth: return login URL (append state=userId for round-trip) */
+  async loginUrl(userId = "default") {
+    if (!this.kc) this.kc = new KiteConnect({ api_key: this.opts.apiKey });
+    const url = this.kc.getLoginURL();
+    // add a state param so we know the user later
+    const sep = url.includes("?") ? "&" : "?";
+    return `${url}${sep}state=${encodeURIComponent(userId)}`;
+  }
+
+  /** OAuth callback: expects ?request_token=xxx. Exchanges for access_token. */
+  async handleCallback(_userId = "default", query = {}) {
+    const requestToken = query.request_token;
+    if (!requestToken) throw new Error("request_token missing in callback");
+    if (!this.kc) this.kc = new KiteConnect({ api_key: this.opts.apiKey });
+
+    const sess = await this.kc.generateSession(requestToken, this.opts.apiSecret);
+    const accessToken = sess?.access_token;
+    if (!accessToken) throw new Error("Failed to exchange request_token");
+
+    this.opts.accessToken = accessToken;
+    this.kc.setAccessToken(accessToken);
+
+    // start ticker now that we have a token
+    await this._startTicker();
+  }
+
+  isAuthenticated() {
+    return !!this.opts.accessToken;
+  }
+
+  async _startTicker() {
+    if (!this.opts.apiKey || !this.opts.accessToken) return;
+    if (this.ticker) return; // already started
+
     this.ticker = new KiteTicker({
       api_key: this.opts.apiKey,
       access_token: this.opts.accessToken,
     });
 
-    this.ticker.on("ticks", (ticks) => {
-      for (const t of ticks || []) {
+    this.ticker.on("ticks", (ticks = []) => {
+      for (const t of ticks) {
         const ltp = t.last_price;
         const token = t.instrument_token;
         const symbol = this.symbolFromToken(token);
@@ -53,7 +102,6 @@ export default class Zerodha extends EventEmitter {
 
     this.ticker.on("connect", () => {
       this.connected = true;
-      // If already asked to subscribe, re-subscribe on reconnect
       if (this._pendingSubs?.length) this._subscribeTokens(this._pendingSubs);
     });
 
@@ -61,19 +109,20 @@ export default class Zerodha extends EventEmitter {
     this.ticker.connect();
   }
 
-  /** Resolve app symbol -> { token, exchange } */
+  /** Resolve app symbol -> { token, exchange } from map */
   lookup(symbol) {
-    const e = this.map[symbol];
+    const e = this.map?.[symbol];
     return e ? { token: e.token, exchange: e.exchange } : null;
   }
 
   symbolFromToken(token) {
-    // reverse search once & cache
     if (!this._rev) {
       this._rev = {};
-      for (const [sym, v] of Object.entries(this.map)) this._rev[v.token] = sym;
+      for (const [sym, v] of Object.entries(this.map || {})) {
+        this._rev[v.token] = sym;
+      }
     }
-    return this._rev[token] || null;
+    return this._rev?.[token] || null;
   }
 
   ltpOf(symbol) {
@@ -81,16 +130,20 @@ export default class Zerodha extends EventEmitter {
     return Number.isFinite(v) ? v : null;
   }
 
+  /** Subscribe to symbols for live LTP stream */
   async subscribe(symbols = []) {
-    const toks = symbols
-      .map((s) => this.lookup(s)?.token)
-      .filter(Boolean);
+    const toks = symbols.map((s) => this.lookup(s)?.token).filter(Boolean);
     this._pendingSubs = toks;
     if (this.connected) this._subscribeTokens(toks);
   }
+  /** Called by marketHub resubscriptions too */
+  resubscribe(symbols = []) {
+    return this.subscribe(symbols);
+  }
+
   _subscribeTokens(tokens) {
     try {
-      if (!this.ticker) return;
+      if (!this.ticker || !Array.isArray(tokens) || !tokens.length) return;
       this.ticker.subscribe(tokens);
       this.ticker.setMode(this.ticker.modeLTP, tokens);
     } catch (e) {
@@ -98,24 +151,33 @@ export default class Zerodha extends EventEmitter {
     }
   }
 
-  // --- Orders ---
-  async placeOrder({ symbol, side, qty, product = "MIS", priceType = "MARKET" }) {
-    const m = this.lookup(symbol);
-    if (!m) throw new Error(`Unknown symbol: ${symbol} (map missing)`);
+  // ---- Orders API expected by routes --------------------------------------
+
+  /**
+   * Place order (MARKET by default).
+   * route usage: adapter.placeOrder(userId, { symbol, side, qty, product, priceType })
+   */
+  async placeOrder(_userId, { symbol, side, qty, product = "MIS", priceType = "MARKET" }) {
+    if (!this.kc || !this.isAuthenticated()) throw new Error("Not authenticated with Zerodha");
+    const meta = this.lookup(symbol);
+    if (!meta) throw new Error(`Unknown symbol: ${symbol} (instrument map missing)`);
+
     const tx = side === "BUY" ? "BUY" : "SELL";
     const order = await this.kc.placeOrder("regular", {
-      exchange: m.exchange,           // "NSE"
-      tradingsymbol: symbol,          // "RELIANCE"
-      transaction_type: tx,           // BUY/SELL
+      exchange: meta.exchange || "NSE",
+      tradingsymbol: symbol,
+      transaction_type: tx,
       quantity: qty,
-      product,                        // MIS/CNC
-      order_type: priceType,          // MARKET/LIMIT
+      product,                 // MIS / CNC
+      order_type: priceType,   // MARKET / LIMIT
       validity: "DAY",
     });
-    return { ok: true, id: order?.order_id || "" };
+
+    return { id: order?.order_id || "" };
   }
 
-  async positions() {
+  async getPositions(_userId) {
+    if (!this.kc || !this.isAuthenticated()) throw new Error("Not authenticated with Zerodha");
     const r = await this.kc.getPositions(); // { net: [...] }
     return (r?.net || []).map((p) => ({
       symbol: p.tradingsymbol,
@@ -127,7 +189,8 @@ export default class Zerodha extends EventEmitter {
     }));
   }
 
-  async orders() {
+  async getOrders(_userId) {
+    if (!this.kc || !this.isAuthenticated()) throw new Error("Not authenticated with Zerodha");
     const r = await this.kc.getOrders();
     return (r || []).map((o) => ({
       _id: o.order_id,
@@ -140,3 +203,6 @@ export default class Zerodha extends EventEmitter {
     }));
   }
 }
+
+// Keep backward compatibility if somewhere you import default
+export default ZerodhaAdapter;
