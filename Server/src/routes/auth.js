@@ -6,6 +6,34 @@ import { User } from "../models/User.js";
 
 export const authRouter = Router();
 
+// Registration
+authRouter.post("/register", async (req, res) => {
+  try {
+    const { username, password, email, fullName, gender, birthdate, address, phone } = req.body || {};
+    if (!username || !password) {
+      return res.status(400).json({ error: "username & password required" });
+    }
+    const exists = await User.findOne({ username: username.toLowerCase().trim() });
+    if (exists) return res.status(409).json({ error: "username already exists" });
+    const passwordHash = await bcrypt.hash(password, 10);
+    const doc = await User.create({
+      username: username.toLowerCase().trim(),
+      passwordHash,
+      email: email?.trim(),
+      fullName: fullName?.trim(),
+      gender: gender?.trim(),
+      birthdate: birthdate ? new Date(birthdate) : undefined,
+      address: address?.trim(),
+      phone: phone?.trim(),
+    });
+    setAuthCookie(res, doc);
+    res.json({ ok: true, user: { username: doc.username, role: doc.role } });
+  } catch (e) {
+    res.status(500).json({ error: "registration failed" });
+  }
+});
+
+
 function setAuthCookie(res, user) {
   const token = jwt.sign(
     { sub: user._id.toString(), username: user.username, role: user.role || "user" },

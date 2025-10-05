@@ -1,0 +1,64 @@
+
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Login • Auto Trade</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      body { display:flex; min-height:100vh; align-items:center; justify-content:center; background: #0b1020; }
+      .card { width: 100%; max-width: 420px; padding: 28px; background: #141a2f; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+      h1 { margin: 0 0 18px; font-size: 22px; }
+      .row { display:flex; gap:12px; }
+      label { font-size: 12px; color: #aab3cf; display:block; margin-bottom:6px; }
+      input, select { width: 100%; padding: 10px 12px; border-radius: 10px; border:1px solid #2a3353; background:#0f1530; color:#fff; }
+      button { width:100%; padding: 12px; border: 0; border-radius: 10px; background:#3b82f6; color:#fff; font-weight:600; cursor:pointer; }
+      .tabs { display:flex; gap:10px; margin-bottom:12px; }
+      .tabs button { flex:1; background:#1f2747; }
+      .tabs .active { background:#3b82f6; }
+      .msg { margin: 8px 0 0; color: #f87171; min-height: 20px; }
+      .hint { font-size: 12px; color: #8aa0d1; text-align:center; margin-top:10px; }
+      .hide { display:none; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="tabs">
+        <button id="tabLogin" class="active">Login</button>
+        <button id="tabRegister">Register</button>
+      </div>
+      <div id="loginForm">
+        <h1>Welcome back</h1>
+        <label>Username<input id="luser" /></label>
+        <label>Password<input id="lpass" type="password" /></label>
+        <button id="btnLogin">Login</button>
+        <div id="lmsg" class="msg"></div>
+      </div>
+      <div id="registerForm" class="hide">
+        <h1>Create account</h1>
+        <div class="row">
+          <label>Username<input id="ruser" /></label>
+          <label>Password<input id="rpass" type="password" /></label>
+        </div>
+        <label>Email<input id="remail" type="email" /></label>
+        <label>Full name<input id="rname" /></label>
+        <div class="row">
+          <label>Gender
+            <select id="rgender">
+              <option value="">Select</option>
+              <option>Female</option><option>Male</option><option>Other</option>
+            </select>
+          </label>
+          <label>Birthdate<input id="rbirth" type="date" /></label>
+        </div>
+        <label>Address<input id="raddr" /></label>
+        <label>Phone<input id="rphone" /></label>
+        <button id="btnRegister">Create account</button>
+        <div id="rmsg" class="msg"></div>
+      </div>
+      <div class="hint">You'll be redirected to the platform after login.</div>
+    </div>
+    <script src="login.js"></script>
+  </body>
+</html>

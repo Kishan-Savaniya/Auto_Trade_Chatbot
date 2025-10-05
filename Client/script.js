@@ -1,10 +1,23 @@
+
+// ---------- Auth guard ----------
+(async function(){
+  try {
+    const me = await fetch(API_BASE + "/api/auth/me", { credentials: "include" });
+    if (!me.ok) throw new Error("unauthorized");
+  } catch {
+    if (!location.pathname.endsWith("login.html")) {
+      location.href = "login.html";
+    }
+  }
+})(); 
+
 // ---------- Backend base URL ----------
 const API_BASE = "http://localhost:4000";
 
 // ---------- Utilities ----------
 const $ = (id) => document.getElementById(id);
 const apiGet = (p) =>
-  fetch(`${API_BASE}${p}`, { cache: "no-store" }).then((r) => {
+  fetch(`${API_BASE}${p}`, { cache: "no-store", credentials: "include" }).then((r) => {
     if (!r.ok) throw new Error(`${p} -> ${r.status}`);
     return r.json();
   });
@@ -653,3 +666,16 @@ if (btnConnect) {
     window.open(r.url, "_blank");
   });
 }
+
+
+(function(){
+  const b = document.getElementById("btnLogout");
+  if (!b) return;
+  b.addEventListener("click", async ()=>{
+    try{
+      await fetch(API_BASE + "/api/auth/logout", { method:"POST", credentials:"include" });
+    } finally {
+      location.href = "login.html";
+    }
+  });
+})();
