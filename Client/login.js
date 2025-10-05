@@ -5,12 +5,44 @@
       credentials: "include",
       cache: "no-store"
     });
-    if (r.ok) return location.replace("index.html"); // no back to login
+    if (r.ok) return location.replace("index.html");
   } catch {}
 })();
 
 
 const API_BASE = "http://localhost:4000";
+
+document.getElementById("btnLogin").onclick = async () => {
+  const u = document.getElementById("luser").value.trim();
+  const p = document.getElementById("lpass").value;
+  const msg = document.getElementById("lmsg");
+  const btn = document.getElementById("btnLogin");
+
+  msg.textContent = "";
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ username: u, password: p })
+    });
+
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      throw new Error(j.error || `Login failed (${res.status})`);
+    }
+
+    // ✅ cookie set by server -> jump to dashboard (removes login from history)
+    location.replace("index.html");
+  } catch (e) {
+    msg.textContent = e.message || "Login failed";
+  } finally {
+    btn.disabled = false;
+  }
+};
+
 function j(x) {
   return document.getElementById(x);
 }

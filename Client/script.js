@@ -2,9 +2,9 @@
 const API_BASE = "http://localhost:4000";
 
 // 2) Auth guard NEXT
-(async function(){
+(async function () {
   try {
-    const me = await fetch(API_BASE + "/api/auth/me", { credentials: "include" });
+    const me = await fetch(`${API_BASE}/api/auth/me`, { credentials: "include" });
     if (!me.ok) throw new Error("unauthorized");
   } catch {
     if (!location.pathname.endsWith("login.html")) {

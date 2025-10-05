@@ -33,14 +33,10 @@ export function buildApp() {
 
  app.use(cors({
   origin: (origin, cb) => {
-    const allow = new Set([
-      "http://localhost:5500",  // or your actual UI origin/port
-      "http://127.0.0.1:5500"
-    ]);
     if (!origin || allow.has(origin)) return cb(null, true);
     return cb(null, false);
   },
-  credentials: true
+  credentials: true  // ✅ allow cookies
 }));
 
 

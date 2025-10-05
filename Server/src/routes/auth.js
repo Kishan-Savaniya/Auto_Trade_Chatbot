@@ -39,8 +39,8 @@ function setAuthCookie(res, user) {
 
 res.cookie("at", token, {
   httpOnly: true,
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-  secure:   process.env.NODE_ENV === "production",
+  sameSite: "none",  // cross-site allowed
+  secure: true,      // required with SameSite=None
   path: "/"
 });
 
