@@ -1,5 +1,7 @@
+// ---------- Backend base URL ----------
+const API_BASE = "http://localhost:4000";
 
-// ---------- Auth guard ----------
+// 2) Auth guard NEXT
 (async function(){
   try {
     const me = await fetch(API_BASE + "/api/auth/me", { credentials: "include" });
@@ -9,10 +11,9 @@
       location.href = "login.html";
     }
   }
-})(); 
+})();
 
-// ---------- Backend base URL ----------
-const API_BASE = "http://localhost:4000";
+
 
 // ---------- Utilities ----------
 const $ = (id) => document.getElementById(id);

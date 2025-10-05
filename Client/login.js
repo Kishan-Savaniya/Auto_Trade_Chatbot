@@ -3,10 +3,12 @@
   try {
     const r = await fetch("http://localhost:4000/api/auth/me", {
       credentials: "include",
+      cache: "no-store"
     });
-    if (r.ok) return location.replace("index.html");
+    if (r.ok) return location.replace("index.html"); // no back to login
   } catch {}
 })();
+
 
 const API_BASE = "http://localhost:4000";
 function j(x) {
@@ -39,15 +41,33 @@ j("tabRegister").onclick = () => {
 };
 j("btnLogin").onclick = async () => {
   try {
-    const r = await post("/api/auth/login", {
-      username: j("luser").value.trim(),
-      password: j("lpass").value,
+    // optional UX hardening: prevent double-submit
+    j("btnLogin").disabled = true;
+
+    const r = await fetch("http://localhost:4000/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        username: j("luser").value.trim(),
+        password: j("lpass").value
+      })
     });
-    location.replace("index.html"); // prevents back-nav to login after auth
+
+    if (!r.ok) {
+      const jx = await r.json().catch(() => ({}));
+      throw new Error(jx.error || `Login failed (${r.status})`);
+    }
+
+    // success → go to dashboard, remove login from history
+    location.replace("index.html");
   } catch (e) {
-    j("lmsg").textContent = e.message;
+    j("lmsg").textContent = e.message || "Login failed";
+  } finally {
+    j("btnLogin").disabled = false;
   }
 };
+
 j("btnRegister").onclick = async () => {
   try {
     const body = {
