@@ -31,13 +31,24 @@ export function buildApp() {
     allowList.add(config.corsOrigin);
   }
 
- app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin || allow.has(origin)) return cb(null, true);
-    return cb(null, false);
-  },
-  credentials: true  // ✅ allow cookies
-}));
+  // Allowed front-end origins (dev)
+const ALLOW_ORIGINS = new Set([
+  "http://localhost:5500",   // VS Code Live Server (localhost)
+  "http://127.0.0.1:5500",   // VS Code Live Server (127.0.0.1)
+  "http://localhost:5173",   // Vite dev default (localhost)
+  "http://127.0.0.1:5173"    // Vite dev default (127.0.0.1)
+]);
+
+ app.use(
+  cors({
+    origin: (origin, cb) => {
+      // Allow non-browser tools (no Origin header) and whitelisted origins
+      if (!origin || ALLOW_ORIGINS.has(origin)) return cb(null, true);
+      return cb(new Error(`CORS blocked origin: ${origin}`), false);
+    },
+    credentials: true, // send/receive cookies
+  })
+);
 
 
   app.use(cookieParser()); // ✅ needed for auth cookie
