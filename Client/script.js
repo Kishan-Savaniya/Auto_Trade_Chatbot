@@ -287,68 +287,65 @@ setInterval(() => {
 async function refreshKpis() {
   const toINR = (n) => "₹" + Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 
-  // --- Today + Yesterday (both amount & %) ---
-  try {
-    const r = await apiGet("/api/reports/today"); // includes: net, percent, basisValue, yesterdayNet
+  /// --- Today + Yesterday (amount & %) ---
+try {
+  const r = await apiGet("/api/reports/today");
 
-    // Big Today number (amount only)
-    const pnlEl = $("kpiPnl");
-    pnlEl.textContent = toINR(r?.net || 0);
+  // Big Today number (amount only)
+  const pnlEl = $("kpiPnl");
+  pnlEl.textContent = fmtINR(r.todayNet || 0);
 
-    // Hide old red bracket line if present
-    const oldPct = document.getElementById("kpiPnlPct");
-    if (oldPct) oldPct.style.display = "none";
+  // remove any legacy bracket line
+  const oldPct = document.getElementById("kpiPnlPct");
+  if (oldPct) oldPct.remove();
 
-    // Calculate percents
-    const todayPct = Number.isFinite(Number(r?.percent)) ? Number(r.percent) : 0;
-    const yNet = Number(r?.yesterdayNet || 0);
-    const denom = Number(r?.basisValue || 0) || Math.max(Math.abs(yNet), 1); // fallback avoid /0
-    const yPct = Number(((yNet / denom) * 100).toFixed(2));
+  // Build/update a compact pair row underneath
+  let pair = document.getElementById("kpiPnlPair");
+  if (!pair) {
+    pair = document.createElement("div");
+    pair.id = "kpiPnlPair";
+    pair.className = "kpi-pair-row";
+    pnlEl.parentElement?.insertBefore(pair, pnlEl.nextSibling);
 
-    // Build/update the single-line pair: Today / Yesterday (both with %)
-    let pair = document.getElementById("kpiPnlPair");
-    if (!pair) {
-      pair = document.createElement("div");
-      pair.id = "kpiPnlPair";
-      pair.className = "kpi-pair-row";
-      pnlEl.parentElement?.insertBefore(pair, pnlEl.nextSibling);
-
-      if (!document.getElementById("kpiPairStyle")) {
-        const style = document.createElement("style");
-        style.id = "kpiPairStyle";
-        style.textContent = `
-          .kpi-pair-row{ display:flex; gap:18px; align-items:baseline; margin-top:6px; flex-wrap:wrap; }
-          .kpi-pair-row .label{ opacity:.75; font-size:.95rem; margin-right:6px; }
-          .kpi-pair-row .val{ font-weight:600; }
-          .kpi-pair-row .pct{ margin-left:6px; font-weight:600; }
-          .kpi-pair-row .pos{ color:var(--brand); }
-          .kpi-pair-row .neg{ color:var(--danger); }
-        `;
-        document.head.appendChild(style);
-      }
+    if (!document.getElementById("kpiPairStyle")) {
+      const style = document.createElement("style");
+      style.id = "kpiPairStyle";
+      style.textContent = `
+        .kpi-pair-row{ display:flex; gap:18px; align-items:baseline; margin-top:6px; flex-wrap:wrap; }
+        .kpi-pair-row .label{ opacity:.75; font-size:.95rem; margin-right:6px; }
+        .kpi-pair-row .val{ font-weight:600; }
+        .kpi-pair-row .pct{ margin-left:6px; font-weight:600; }
+        .kpi-pair-row .pos{ color:var(--brand); }
+        .kpi-pair-row .neg{ color:var(--danger); }
+      `;
+      document.head.appendChild(style);
     }
-    const todayPctCls = todayPct >= 0 ? "pos" : "neg";
-    const yPctCls = yPct >= 0 ? "pos" : "neg";
-    pair.innerHTML = `
-      <span>
-        <span class="label">Today:</span>
-        <span class="val">${toINR(r.net)}</span>
-        <span class="pct ${todayPctCls}">(${todayPct >= 0 ? "+" : ""}${todayPct.toFixed(2)}%)</span>
-      </span>
-      <span>
-        <span class="label">Yesterday:</span>
-        <span class="val">${toINR(yNet)}</span>
-        <span class="pct ${yPctCls}">(${yPct >= 0 ? "+" : ""}${yPct.toFixed(2)}%)</span>
-      </span>
-    `;
-
-    // Trades / WL
-    $("kpiTrades").textContent = String(Number(r?.trades || 0));
-    $("kpiProf").textContent   = String(Number(r?.wins   || 0));
-    $("kpiLoss").textContent   = String(Number(r?.losses || 0));
-  } catch (e) {
-    console.error("refreshKpis/today+yesterday failed:", e);
   }
+
+  const tp = Number(r.todayPercent || 0);
+  const yp = Number(r.yesterdayPercent || 0);
+  const tpClass = tp >= 0 ? "pos" : "neg";
+  const ypClass = yp >= 0 ? "pos" : "neg";
+
+  pair.innerHTML = `
+    <span>
+      <span class="label">Today:</span>
+      <span class="val">${fmtINR(r.todayNet || 0)}</span>
+      <span class="pct ${tpClass}">(${tp >= 0 ? "+" : ""}${tp.toFixed(2)}%)</span>
+    </span>
+    <span>
+      <span class="label">Yesterday:</span>
+      <span class="val">${fmtINR(r.yesterdayNet || 0)}</span>
+      <span class="pct ${ypClass}">(${yp >= 0 ? "+" : ""}${yp.toFixed(2)}%)</span>
+    </span>
+  `;
+
+  $("kpiTrades").textContent = String(Number(r?.trades || 0));
+  $("kpiProf").textContent   = String(Number(r?.wins   || 0));
+  $("kpiLoss").textContent   = String(Number(r?.losses || 0));
+} catch (e) {
+  console.error("refreshKpis/today+yesterday failed:", e);
+}
 
   // --- Open positions (count + notional value) ---
   try {
