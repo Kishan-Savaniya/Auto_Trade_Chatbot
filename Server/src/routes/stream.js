@@ -1,6 +1,7 @@
 // Server/src/routes/stream.js
 import { Router } from "express";
-import { marketBus, getSnapshotRows } from "../services/marketHub.js";
+import { marketBus } from "../services/marketHub.js";
+import { getSnapshotRows } from "../services/marketDataService.js";
 
 export const streamRouter = Router();
 
