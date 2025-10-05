@@ -35,17 +35,16 @@ authRouter.post("/register", async (req, res) => {
 
 
 function setAuthCookie(res, user) {
-  const token = jwt.sign(
-    { sub: user._id.toString(), username: user.username, role: user.role || "user" },
-    process.env.JWT_SECRET || "dev_secret",
-    { expiresIn: "7d" }
-  );
-  res.cookie("at", token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 7 * 24 * 60 * 60 * 1000
-  });
+  const token = jwt.sign({ sub: user._id, u: user.username }, process.env.JWT_SECRET, { expiresIn: "1d" });
+
+res.cookie("at", token, {
+  httpOnly: true,
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  secure:   process.env.NODE_ENV === "production",
+  path: "/"
+});
+
+res.json({ ok: true });
 }
 
 authRouter.post("/signup", async (req, res) => {

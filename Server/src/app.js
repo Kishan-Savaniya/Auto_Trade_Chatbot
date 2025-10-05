@@ -31,18 +31,18 @@ export function buildApp() {
     allowList.add(config.corsOrigin);
   }
 
-  app.use(
-    cors({
-      origin: (origin, cb) => {
-        if (!origin) return cb(null, true); // tools/cURL
-        if (allowList.has(origin)) return cb(null, true);
-        // allow localhost:5500 variants just in case
-        if (/^http:\/\/(localhost|127\.0\.0\.1):5500$/.test(origin)) return cb(null, true);
-        return cb(null, false);
-      },
-      credentials: true, // ✅ send/receive cookies
-    })
-  );
+ app.use(cors({
+  origin: (origin, cb) => {
+    const allow = new Set([
+      "http://localhost:5500",  // or your actual UI origin/port
+      "http://127.0.0.1:5500"
+    ]);
+    if (!origin || allow.has(origin)) return cb(null, true);
+    return cb(null, false);
+  },
+  credentials: true
+}));
+
 
   app.use(cookieParser()); // ✅ needed for auth cookie
   app.use(express.json());
