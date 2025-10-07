@@ -125,3 +125,13 @@ export async function sendDailyEodReportIfEnabled() {
   console.log("[Notify] Daily report sent to", to);
   return { sent: true };
 }
+
+export async function notifyEmail(to, subject, html) {
+  // Integrate nodemailer or SES here
+  console.log("[notifyEmail]", to, subject);
+}
+export async function notifyWebhook(url, payload) {
+  try {
+    await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+  } catch (e) { console.error("[notifyWebhook]", e?.message || e); }
+}
