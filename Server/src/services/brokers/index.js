@@ -67,3 +67,8 @@ export async function getBrokerAdapter(name) {
 export function getUserBrokerName() {
   return (process.env.BROKER || "zerodha").toLowerCase();
 }
+
+/** Small time util to compute expiry Date */
+export function minutesFromNow(mins) {
+  return new Date(Date.now() + mins * 60_000);
+}
