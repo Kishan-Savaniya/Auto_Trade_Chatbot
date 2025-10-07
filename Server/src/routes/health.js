@@ -67,13 +67,10 @@ healthRouter.get("/ready", (_req, res) =>
  * Debug: which broker adapter is actually being resolved at runtime
  */
 healthRouter.get("/debug/broker", (req, res) => {
+  const { getBrokerName, getBrokerAdapter, normalizeBroker } = require("../services/providers.js");
   const raw = (req.query.name || process.env.BROKER || "mock");
   const norm = normalizeBroker(raw) || "mock";
   const mod = getBrokerAdapter(raw) || {};
-  res.json({
-    raw,
-    normalized: norm,
-    moduleKeys: Object.keys(mod),
-    using: getBrokerName()
-  });
+  res.json({ raw, normalized: norm, moduleKeys: Object.keys(mod), using: getBrokerName() });
 });
+
