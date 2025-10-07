@@ -1,30 +1,33 @@
-//Scope Create broker-agnostic API with idempotency, retries, slippage bounds.
-
 import { v4 as uuid } from "uuid";
-import { getBrokerAdapter } from "../providers.js"; // return active adapter
 import { Order } from "../../models/Order.js";
+import { getBrokerAdapter, getBrokerName } from "../providers.js";
 
-export async function place(order) {
+export async function place(userId, order) {
   const idemKey = order.idemKey || uuid();
   const existing = await Order.findOne({ idemKey });
-  if (existing) return existing; // idempotent
-  const adapter = await getBrokerAdapter();
-  const res = await adapter.placeOrder({ ...order, idemKey });
-  const doc = await Order.create({
-    ...order, idemKey,
-    brokerOrderId: res.brokerOrderId,
-    status: "PENDING"
-  });
-  return doc;
+  if (existing) return existing;
+
+  const broker = getBrokerName();
+  const adapter = getBrokerAdapter();
+
+  const doc = await Order.create({ ...order, userId, idemKey, broker, status: "PENDING" });
+  try {
+    const res = await adapter.placeOrder?.(userId, order);
+    await Order.updateOne({ _id: doc._id }, { $set: { brokerOrderId: res?.brokerOrderId || null, status: res?.warning ? "PENDING" : "OPEN" } });
+    return await Order.findById(doc._id);
+  } catch (e) {
+    await Order.updateOne({ _id: doc._id }, { $set: { status: "REJECTED" } });
+    throw e;
+  }
 }
 
-export async function cancel(brokerOrderId) {
-  const adapter = await getBrokerAdapter();
-  await adapter.cancelOrder(brokerOrderId);
-  await Order.updateOne({ brokerOrderId }, { $set: { status: "CANCELLED" }});
+export async function cancel(userId, brokerOrderId) {
+  const adapter = getBrokerAdapter();
+  await adapter.cancelOrder?.(userId, brokerOrderId);
+  await Order.updateOne({ brokerOrderId }, { $set: { status: "CANCELLED" } });
 }
 
-export async function modify(brokerOrderId, patch) {
-  const adapter = await getBrokerAdapter();
-  await adapter.modifyOrder(brokerOrderId, patch);
+export async function modify(userId, brokerOrderId, patch) {
+  const adapter = getBrokerAdapter();
+  await adapter.modifyOrder?.(userId, brokerOrderId, patch);
 }
