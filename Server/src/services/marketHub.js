@@ -12,7 +12,7 @@ export function getProvider() { return currentProvider; }
 
 export async function startMarketFeed(instruments) {
   const adapter = await getBrokerAdapter();
-  let stop = adapter.connectMarketWS(/* token doc resolved inside */, instruments, (tick) => {
+  let stop = adapter.connectMarketWS(/* token doc resolved inside */ instruments, (tick) => {
     marketBus.emit("tick", tick);
   });
   return () => { try { stop && stop(); } catch {} };
