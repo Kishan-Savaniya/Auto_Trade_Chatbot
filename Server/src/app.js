@@ -2,82 +2,81 @@
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
-import cookieParser from "cookie-parser";              // ✅ NEW: read HTTP-only auth cookie
+import cookieParser from "cookie-parser";
 import { config } from "./config.js";
 
-import { authRouter } from "./routes/auth.js";         // ✅ NEW: public auth routes (login/signup/me/logout)
-import { authRequired } from "./middleware/auth.js";   // ✅ NEW: guard for protected APIs
+import { authRouter } from "./routes/auth.js";
+import { authRequired } from "./middleware/auth.js";
 
 import { engineRouter } from "./routes/engine.js";
 import { marketRouter } from "./routes/market.js";
 import { ordersRouter } from "./routes/orders.js";
 import { positionsRouter } from "./routes/positions.js";
 import { reportsRouter } from "./routes/reports.js";
-import { settingsRouter, brokerRouter } from "./routes/settings.js";
+import { settingsRouter } from "./routes/settings.js";
+import { brokerRouter } from "./routes/broker.js";
 import { healthRouter } from "./routes/health.js";
 import { streamRouter } from "./routes/stream.js";
 import { registry } from "./metrics/metrics.js";
 
+function buildAllowOrigins() {
+  const set = new Set([
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+  ]);
+  if (config.corsOrigin && config.corsOrigin !== "*") set.add(config.corsOrigin);
+  if (process.env.CORS_ALLOW_ORIGINS) {
+    String(process.env.CORS_ALLOW_ORIGINS)
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean)
+      .forEach((o) => set.add(o));
+  }
+  return set;
+}
+
 export function buildApp() {
   const app = express();
 
-  /* ----------------------------- CORS (with cookies) ----------------------------- */
-  // NOTE: When sending cookies, origin cannot be "*".
-  const allowList = new Set([
-    "http://localhost:5500",
-    "http://127.0.0.1:5500",
-  ]);
-  // include configured origin if present and not wildcard
-  if (config.corsOrigin && config.corsOrigin !== "*") {
-    allowList.add(config.corsOrigin);
-  }
-
-  // Allowed front-end origins (dev)
-const ALLOW_ORIGINS = new Set([
-  "http://localhost:5500",   // VS Code Live Server (localhost)
-  "http://127.0.0.1:5500",   // VS Code Live Server (127.0.0.1)
-  "http://localhost:5173",   // Vite dev default (localhost)
-  "http://127.0.0.1:5173"    // Vite dev default (127.0.0.1)
-]);
-
- app.use(
-  cors({
+  // --------------------------- CORS (cookies-safe, single) ---------------------------
+  const ALLOW_ORIGINS = buildAllowOrigins();
+  app.use(cors({
     origin: (origin, cb) => {
-      // Allow non-browser tools (no Origin header) and whitelisted origins
       if (!origin || ALLOW_ORIGINS.has(origin)) return cb(null, true);
       return cb(new Error(`CORS blocked origin: ${origin}`), false);
     },
-    credentials: true, // send/receive cookies
-  })
-);
+    credentials: true,
+  }));
 
-
-  app.use(cookieParser()); // ✅ needed for auth cookie
+  app.use(cookieParser());
   app.use(express.json());
   app.use(morgan("dev"));
 
-  /* ----------------------------------- Public ----------------------------------- */
+  // ----------------------------------- Public -----------------------------------
   app.get("/", (_req, res) => res.json({ ok: true, name: "Auto Trade Backend" }));
-  app.use("/api", healthRouter);
+  app.use("/api", healthRouter);        // /api/health, /api/ready
+  app.get("/metrics", async (_req, res) => {
+    res.set("Content-Type", registry.contentType);
+    res.end(await registry.metrics());
+  });
 
-  app.use("/api/auth", authRouter);        // ✅ login / signup / logout / me (public)
-  app.use("/api/broker", brokerRouter);    // public OAuth redirects if you wire real brokers
+  app.use("/api/auth", authRouter);
+  app.use("/api/broker", brokerRouter); // OAuth redirects/callbacks
 
-  // Keep market table public so the login screen can show something (make it protected if you prefer)
+  // Optional: keep market public or protect it as you prefer
   app.use("/api/market", marketRouter);
 
-  /* --------------------------------- Protected ---------------------------------- */
-  // Everything below requires a valid auth cookie (set by /api/auth/login or /api/auth/signup)
+  // --------------------------------- Protected ----------------------------------
   app.use("/api/engine", authRequired, engineRouter);
   app.use("/api/orders", authRequired, ordersRouter);
   app.use("/api/positions", authRequired, positionsRouter);
   app.use("/api/reports", authRequired, reportsRouter);
   app.use("/api/settings", authRequired, settingsRouter);
+  app.use("/api", authRequired, streamRouter); // SSE stream protected
 
-  // Your stream router was previously mounted at "/api"; keep same path but protect it
-  app.use("/api", authRequired, streamRouter);
-
-  /* ---------------------------------- Fallback ---------------------------------- */
+  // ---------------------------------- Fallback ----------------------------------
   app.use((req, res) => res.status(404).json({ error: "Not found", path: req.path }));
 
   // eslint-disable-next-line no-unused-vars
@@ -88,8 +87,3 @@ const ALLOW_ORIGINS = new Set([
 
   return app;
 }
-
-app.get("/metrics", async (req,res)=>{
-  res.set("Content-Type", registry.contentType);
-  res.end(await registry.metrics());
-});
