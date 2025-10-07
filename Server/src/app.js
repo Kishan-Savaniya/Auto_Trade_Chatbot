@@ -18,6 +18,7 @@ import { brokerRouter } from "./routes/broker.js";
 import { healthRouter } from "./routes/health.js";
 import { streamRouter } from "./routes/stream.js";
 import { registry } from "./metrics/metrics.js";
+import { correlation } from "./middleware/correlation.js";
 
 function buildAllowOrigins() {
   const set = new Set([
@@ -53,6 +54,7 @@ export function buildApp() {
   app.use(cookieParser());
   app.use(express.json());
   app.use(morgan("dev"));
+  app.use(correlation());
 
   // ----------------------------------- Public -----------------------------------
   app.get("/", (_req, res) => res.json({ ok: true, name: "Auto Trade Backend" }));
