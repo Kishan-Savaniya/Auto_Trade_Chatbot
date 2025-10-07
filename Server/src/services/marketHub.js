@@ -1,36 +1,30 @@
 // Server/src/services/marketHub.js
-import { config } from "../config.js";
-import { getFeed } from "../adapters/market/index.js";
-import EventEmitter from "eventemitter3";
-import { getBrokerAdapter } from "./providers.js";
-export const marketHub = new EventEmitter();
+// Normalized feed entrypoint: choose adapter, connect WS, emit tick/status.
 
-let currentProvider = config.market.provider || "mock";
-let closeCurrentFeed = null;
+import EventEmitter from "events";
+import { getBrokerAdapter, getBrokerName } from "./providers.js";
 
-export function getProvider() { return currentProvider; }
+export const marketBus = new EventEmitter();
 
-export async function startMarketFeed(instruments) {
-  const adapter = await getBrokerAdapter();
-  let stop = adapter.connectMarketWS(/* token doc resolved inside */ instruments, (tick) => {
-    marketBus.emit("tick", tick);
-  });
+/**
+ * Start a market feed for the active broker.
+ * @param {Object} opts
+ * @param {string[]} opts.instruments - symbols or tokens depending on adapter
+ * @param {string}   opts.userId
+ * @returns {Function} stop function
+ */
+export function startMarketFeed({ instruments = [], userId = "default" } = {}) {
+  const adapter = getBrokerAdapter();
+  let stop = null;
+  try {
+    stop = adapter.connectMarketWS({
+      userId,
+      instruments,
+      onTick: (t) => marketBus.emit("tick", t),
+      onStatus: (s, d) => marketBus.emit("feed:status", { state: s, details: d, broker: getBrokerName() }),
+    });
+  } catch (e) {
+    marketBus.emit("feed:status", { state: "error", details: e, broker: getBrokerName() });
+  }
   return () => { try { stop && stop(); } catch {} };
 }
-
-export function switchProvider(provider) {
-  if (provider === currentProvider) return;
-  if (closeCurrentFeed) { try { closeCurrentFeed(); } catch {} }
-  currentProvider = provider;
-
-  // boot new feed
-  const feed = getFeed(provider);
-  // your existing subscription -> history update
-  // ...
-  // at the end, assign closer:
-  closeCurrentFeed = () => feed.close?.();
-}
-
-export const marketBus = marketHub; // re-export alias as before
-
-
