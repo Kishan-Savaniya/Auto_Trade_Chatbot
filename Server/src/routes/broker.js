@@ -1,44 +1,77 @@
 // Server/src/routes/broker.js
 import { Router } from "express";
-import { getBrokerAdapter, getUserBrokerName } from "../services/brokers/index.js";
+import { getBrokerAdapter } from "../services/providers.js";
 
 export const brokerRouter = Router();
 
+/**
+ * Infer current logged-in user id.
+ * Adapt this for your auth system (cookie/session/jwt).
+ */
+function getUserId(req) {
+  return req.user?._id || req.session?.uid || req.query.userId || "default";
+}
+
 brokerRouter.get("/status", async (req, res) => {
-  const userId = req.query.userId || "default";
-  const name = req.query.broker || getUserBrokerName();
   try {
+    const userId = getUserId(req);
+    const name = (req.query.broker || process.env.BROKER || "mock").toLowerCase();
     const A = getBrokerAdapter(name);
     const ok = await A.isAuthenticated?.(userId);
     res.json({ connected: !!ok, name });
   } catch (e) {
-    res.json({ connected: false, name, error: e?.message });
+    res.json({ connected: false, error: e?.message });
   }
 });
-
 
 // Return OAuth login URL for the selected broker
 brokerRouter.get("/login/:name", async (req, res) => {
   const name = (req.params.name || "").toLowerCase();
+  const userId = getUserId(req);
   try {
-    if (name === "upstox") {
-      const key = process.env.UPSTOX_API_KEY;
-      const redirect = process.env.UPSTOX_REDIRECT_URI;
-      const scope = process.env.UPSTOX_SCOPE || "orders profile websocket marketdata";
-      if (!key || !redirect) return res.status(500).json({ error: "Upstox API keys not configured" });
-      const url = `https://api.upstox.com/v2/login/authorization/dialog?response_type=code&client_id=${encodeURIComponent(key)}&redirect_uri=${encodeURIComponent(redirect)}&scope=${encodeURIComponent(scope)}`;
-      return res.json({ url });
-    }
-    if (name === "zerodha" || name === "kite") {
-      const key = process.env.KITE_API_KEY;
-      const redirect = process.env.KITE_REDIRECT_URI; // optional; Kite v3 ignores redirect param
-      if (!key) return res.status(500).json({ error: "Kite API key not configured" });
-      const base = `https://kite.trade/connect/login?api_key=${encodeURIComponent(key)}&v=3`;
-      const url = redirect ? base + `&redirect_uri=${encodeURIComponent(redirect)}` : base;
-      return res.json({ url });
-    }
-    return res.status(400).json({ error: "unsupported broker" });
+    const A = getBrokerAdapter(name);
+    const url = await A.loginUrl?.(userId);
+    if (!url) return res.status(400).json({ error: "loginUrl not implemented for broker" });
+    return res.json({ url });
   } catch (e) {
-    res.status(500).json({ error: "failed to build login url" });
+    return res.status(500).json({ error: e?.message || "failed to build login url" });
+  }
+});
+
+// OAuth callbacks
+brokerRouter.get("/callback/zerodha", async (req, res) => {
+  try {
+    const userId = req.query.state || getUserId(req);
+    const A = getBrokerAdapter("zerodha");
+    await A.handleCallback?.(userId, req.query);
+    res.redirect("/Client/index.html#broker=ok");
+  } catch (e) {
+    console.error("[broker/callback/zerodha]", e);
+    res.redirect("/Client/index.html#broker=fail");
+  }
+});
+
+brokerRouter.get("/callback/upstox", async (req, res) => {
+  try {
+    const userId = req.query.state || getUserId(req);
+    const A = getBrokerAdapter("upstox");
+    await A.handleCallback?.(userId, req.query);
+    res.redirect("/Client/index.html#broker=ok");
+  } catch (e) {
+    console.error("[broker/callback/upstox]", e);
+    res.redirect("/Client/index.html#broker=fail");
+  }
+});
+
+// Mock callback for local testing convenience
+brokerRouter.get("/callback/mock", async (req, res) => {
+  try {
+    const userId = req.query.state || getUserId(req);
+    const A = getBrokerAdapter("mock");
+    await A.handleCallback?.(userId, req.query);
+    res.redirect("/Client/index.html#broker=ok");
+  } catch (e) {
+    console.error("[broker/callback/mock]", e);
+    res.redirect("/Client/index.html#broker=fail");
   }
 });
