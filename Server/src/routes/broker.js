@@ -1,6 +1,7 @@
 // Server/src/routes/broker.js
 import { Router } from "express";
-import { getBrokerAdapter } from "../services/providers.js";
+import { getBrokerAdapter, getBrokerName } from "../services/providers.js";
+
 
 export const brokerRouter = Router();
 
@@ -15,7 +16,8 @@ function getUserId(req) {
 brokerRouter.get("/status", async (req, res) => {
   try {
     const userId = getUserId(req);
-    const name = (req.query.broker || process.env.BROKER || "mock").toLowerCase();
+    const name = (req.query.broker || getBrokerName()).toLowerCase();
+
     const A = getBrokerAdapter(name);
     const ok = await A.isAuthenticated?.(userId);
     res.json({ connected: !!ok, name });
