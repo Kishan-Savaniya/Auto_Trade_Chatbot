@@ -4,6 +4,7 @@ import { buildApp } from "./app.js";
 import { connectDB, isDbConnected } from "./db.js";
 import { config } from "./config.js";
 import { startMarketHoursGuard } from "./services/marketHoursGuard.js"; // ← NEW guard import
+import { startScheduler } from "./services/scheduler.js";
 
 process.on("unhandledRejection", (e) => {
   console.error("[unhandledRejection]", e?.message || e);
@@ -50,3 +51,5 @@ async function start() {
 }
 
 start();
+
+startScheduler(); // default user or resolve per account
