@@ -1,12 +1,9 @@
 import mongoose from "mongoose";
 import crypto from "crypto";
 
-// 32-byte hex key in .env (prod: KMS/Keyring)
-const ENC_HEX = process.env.TOKEN_ENC_KEY;
-if (!ENC_HEX || ENC_HEX.length !== 64) {
-  console.warn("[BrokerToken] TOKEN_ENC_KEY missing or invalid length; DO NOT USE IN PROD");
-}
-const KEY = ENC_HEX ? Buffer.from(ENC_HEX, "hex") : Buffer.alloc(32);
+// 32-byte hex key via KMS in prod; dev: openssl rand -hex 32
+const ENC_HEX = process.env.TOKEN_ENC_KEY || "";
+const KEY = ENC_HEX.length === 64 ? Buffer.from(ENC_HEX, "hex") : Buffer.alloc(32);
 
 function enc(plain) {
   if (!plain) return null;
@@ -35,12 +32,7 @@ const schema = new mongoose.Schema({
   refreshToken: { type: String, get: dec, set: enc },
   expiresAt: Date,
   meta: Object
-}, {
-  timestamps: true,
-  toJSON: { getters: true },
-  toObject: { getters: true }
-});
+}, { timestamps: true, toJSON: { getters: true }, toObject: { getters: true } });
 
 schema.index({ userId: 1, broker: 1 }, { unique: true });
-
 export const BrokerToken = mongoose.model("BrokerToken", schema);
