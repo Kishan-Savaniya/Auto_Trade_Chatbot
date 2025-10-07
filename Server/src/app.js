@@ -16,6 +16,7 @@ import { reportsRouter } from "./routes/reports.js";
 import { settingsRouter, brokerRouter } from "./routes/settings.js";
 import { healthRouter } from "./routes/health.js";
 import { streamRouter } from "./routes/stream.js";
+import { registry } from "./metrics/metrics.js";
 
 export function buildApp() {
   const app = express();
@@ -57,7 +58,7 @@ const ALLOW_ORIGINS = new Set([
 
   /* ----------------------------------- Public ----------------------------------- */
   app.get("/", (_req, res) => res.json({ ok: true, name: "Auto Trade Backend" }));
-  app.use("/health", healthRouter);
+  app.use("/api", healthRouter);
 
   app.use("/api/auth", authRouter);        // ✅ login / signup / logout / me (public)
   app.use("/api/broker", brokerRouter);    // public OAuth redirects if you wire real brokers
@@ -87,3 +88,8 @@ const ALLOW_ORIGINS = new Set([
 
   return app;
 }
+
+app.get("/metrics", async (req,res)=>{
+  res.set("Content-Type", registry.contentType);
+  res.end(await registry.metrics());
+});
