@@ -43,13 +43,21 @@ export function buildApp() {
 
   // --------------------------- CORS (cookies-safe, single) ---------------------------
   const ALLOW_ORIGINS = buildAllowOrigins();
-  app.use(cors({
+  app.use(
+  cors({
     origin: (origin, cb) => {
-      if (!origin || ALLOW_ORIGINS.has(origin)) return cb(null, true);
+      const ALLOW = new Set([
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+      ]);
+      if (!origin || ALLOW.has(origin)) return cb(null, true);
       return cb(new Error(`CORS blocked origin: ${origin}`), false);
     },
     credentials: true,
-  }));
+  })
+);
 
   app.use(cookieParser());
   app.use(express.json());
@@ -59,10 +67,11 @@ export function buildApp() {
   // ----------------------------------- Public -----------------------------------
   app.get("/", (_req, res) => res.json({ ok: true, name: "Auto Trade Backend" }));
   app.use("/api", healthRouter);        // /api/health, /api/ready
-  app.get("/metrics", async (_req, res) => {
-    res.set("Content-Type", registry.contentType);
-    res.end(await registry.metrics());
-  });
+  app.get("/metrics", async (_req,res)=>{
+  const { registry } = await import("./metrics/metrics.js");
+  res.set("Content-Type", registry.contentType);
+  res.end(await registry.metrics());
+});
 
   app.use("/api/auth", authRouter);
   app.use("/api/broker", brokerRouter); // OAuth redirects/callbacks
