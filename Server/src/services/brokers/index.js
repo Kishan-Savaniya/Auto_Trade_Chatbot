@@ -21,16 +21,18 @@ function getCtorSafely(modPath, namedKey) {
 }
 
 let _ctorsPromise = (async () => {
-  const [ZerodhaCtor, UpstoxCtor, AngelCtor] = await Promise.all([
-    getCtorSafely("./zerodha.js", "ZerodhaAdapter"),
-    getCtorSafely("./upstox.js", "UpstoxAdapter"),
-    getCtorSafely("./angelone.js", "AngelAdapter"),
-  ]);
-  return {
-    zerodha: ZerodhaCtor,
-    upstox: UpstoxCtor,
-    angelone: AngelCtor,
-  };
+  const [ZerodhaCtor, UpstoxCtor, AngelCtor, MockCtor] = await Promise.all([
+  getCtorSafely("./zerodha.js", "ZerodhaAdapter"),
+  getCtorSafely("./upstox.js", "UpstoxAdapter"),
+  getCtorSafely("./angelone.js", "AngelAdapter"),
+  getCtorSafely("./mock.js", "MockAdapter"),
+]);
+return {
+  zerodha: ZerodhaCtor,
+  upstox: UpstoxCtor,
+  angelone: AngelCtor,
+  mock:    MockCtor
+};
 })();
 
 /**
