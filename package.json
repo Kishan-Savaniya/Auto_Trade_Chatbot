@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "got": "12.6.1",
+    "public-ip": "8.0.0"
+  }
+}
