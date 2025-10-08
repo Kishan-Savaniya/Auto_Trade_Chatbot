@@ -1,78 +1,64 @@
 // Server/src/services/providers.js
-// Canonical broker resolver with:
-// - input sanitization (trim, lowercase, strip non-letters)
-// - aliases ("kite" => "zerodha")
-// - safe fallback to mock (no throws in common path)
-// - optional strict assertion for tests/admin
+// Maps normalized broker names -> adapters (Zerodha (kite), Upstox, Mock)
+// Guarantees: normalizeBroker(), getBrokerName(), getBrokerAdapter()
 
-import * as zerodha from "./brokers/zerodha.js";
-import * as upstox  from "./brokers/upstox.js";
-import * as mock    from "./brokers/mock.js";
+const ENV_NAME = (process.env.BROKER || process.env.BROKER_PROVIDER || "kite").toLowerCase();
 
-const MODULES = { zerodha, upstox, mock };
-
-const ALIASES = new Map([
+const NAME_ALIASES = new Map([
+  ["kite", "zerodha"],
   ["zerodha", "zerodha"],
-  ["kite",    "zerodha"],
-  ["upstox",  "upstox"],
-  ["paper",   "mock"],      // treat "paper" as "mock"
-  ["mock",    "mock"],
+  ["upstox", "upstox"],
+  ["mock", "mock"],
+  ["paper", "mock"], // legacy alias
 ]);
 
-
-function sanitize(input) {
-  if (!input) return "";
-  return String(input).trim().toLowerCase();
-}
-
-// more aggressive: keep letters only (defangs weird env like "zerodha\n")
-function lettersOnly(s) {
-  return s.replace(/[^a-z]/g, "");
-}
-
 export function normalizeBroker(name) {
-  const raw = lettersOnly(sanitize(name || process.env.BROKER || "mock"));
-  // Map aliases first
-  if (ALIASES.has(raw)) return ALIASES.get(raw);
-  // Accept direct module keys
-  if (MODULES[raw]) return raw;
-  return null; // unknown
+  if (!name) return "zerodha";
+  const k = String(name || "").toLowerCase();
+  return NAME_ALIASES.get(k) || "zerodha";
 }
+
+let _cachedName = normalizeBroker(ENV_NAME);
 
 export function getBrokerName() {
-  return normalizeBroker(process.env.BROKER) || "mock";
+  return _cachedName;
 }
 
-/**
- * Safe adapter resolver: never throws; falls back to mock and logs once.
- */
-let warnedOnce = false;
+export function setBrokerName(newName) {
+  _cachedName = normalizeBroker(newName);
+}
+
+// Lazy import so boot never crashes when optional SDKs are missing
 export function getBrokerAdapter(name) {
-  const normalized = normalizeBroker(name) || "mock";
-  const mod = MODULES[normalized];
-  if (mod) return mod;
-
-  // Shouldn't happen due to guard above, but keep safe
-  if (!warnedOnce) {
-    console.warn(`[providers] Unknown broker "${name}". Falling back to "mock".`);
-    warnedOnce = true;
+  const broker = normalizeBroker(name || _cachedName);
+  if (broker === "zerodha") {
+    // ESM named exports from zerodha.js
+    return import("./brokers/zerodha.js").then(m => ({
+      loginUrl: m.loginUrl,
+      handleCallback: m.handleCallback,
+      isAuthenticated: m.isAuthenticated,
+      connectMarketWS: m.connectMarketWS,
+      placeOrder: m.placeOrder,
+      getPositions: m.getPositions,
+      getOrders: m.getOrders,
+      name: "zerodha",
+    }));
   }
-  return MODULES.mock;
-}
-
-/**
- * Strict assert for diagnostics/tests. Throws with details.
- */
-export function assertBrokerAdapter(name) {
-  const n = normalizeBroker(name);
-  if (!n || !MODULES[n]) {
-    const available = Object.fromEntries(
-      Object.entries(MODULES).map(([k, v]) => [k, Object.keys(v || {})])
-    );
-    throw new Error(
-      `Unsupported or missing broker adapter: ${name || process.env.BROKER || "(unset)"}; ` +
-      `available modules & exports: ${JSON.stringify(available)}`
-    );
+  if (broker === "upstox") {
+    return import("./brokers/upstox.js").then(m => ({
+      loginUrl: m.loginUrl,
+      handleCallback: m.handleCallback,
+      isAuthenticated: m.isAuthenticated,
+      connectMarketWS: m.connectMarketWS,
+      placeOrder: m.placeOrder,
+      getPositions: m.getPositions,
+      getOrders: m.getOrders,
+      name: "upstox",
+    }));
   }
-  return MODULES[n];
+  // fallback mock adapter (never throws)
+  return import("./brokers/mockAdapter.js").then(m => ({
+    ...m.default,
+    name: "mock",
+  }));
 }
