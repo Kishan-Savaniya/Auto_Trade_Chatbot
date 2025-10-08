@@ -1,7 +1,11 @@
 // Server/src/services/marketHoursGuard.js
 // Auto-start/stop engine strictly by NSE market hours (IST).
 
-import { isMarketOpenIST, isSquareOffWindowIST, nowIST } from "../utils/istTime.js";
+import {
+  isMarketOpenIST,
+  isSquareOffWindowIST,
+  nowIST,
+} from "../utils/istTime.js";
 import { startLoop, stopLoop, getEngineState } from "./engineLoop.js";
 import { closeAllPositions } from "./brokerService.js";
 import { getBrokerAdapter, getUserBrokerName } from "./brokers/index.js";
@@ -20,11 +24,14 @@ export function startMarketHoursGuard() {
       // Optional: respect broker auth before starting
       let brokerReady = true;
       try {
-        const broker = getBrokerAdapter(getUserBrokerName());
+        const broker = await getBrokerAdapter(getUserBrokerName()); // Await the adapter instance
         if (typeof broker.isAuthenticated === "function") {
           brokerReady = await broker.isAuthenticated("default");
         }
-      } catch { /* keep brokerReady = true if adapters not wired yet */ }
+      } catch (e) {
+        console.warn("[MarketGuard] Broker adapter not ready:", e.message);
+        // brokerReady remains true to avoid blocking other operations (we assume fail-open behavior)
+      }
 
       // Market OPEN → ensure engine running (only if broker is ready)
       if (open && !st.running && brokerReady) {
