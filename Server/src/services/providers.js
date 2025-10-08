@@ -15,8 +15,10 @@ const ALIASES = new Map([
   ["zerodha", "zerodha"],
   ["kite",    "zerodha"],
   ["upstox",  "upstox"],
+  ["paper",   "mock"],      // treat "paper" as "mock"
   ["mock",    "mock"],
 ]);
+
 
 function sanitize(input) {
   if (!input) return "";
