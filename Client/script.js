@@ -680,3 +680,75 @@ if (btnConnect) {
     }
   });
 })();
+
+// --- Auto Trading toggle ---
+const algoToggle = document.getElementById("algoToggle");
+async function refreshHeader() {
+  // ... your existing fetch of /api/engine/state
+  try {
+    const st = await (await fetch(`${API_BASE}/api/engine/state`, { credentials: "include" })).json();
+    document.getElementById("kpiAlgo").textContent = st.running ? "ACTIVE" : "INACTIVE";
+    if (algoToggle) algoToggle.checked = !!st.running;
+  } catch {}
+}
+algoToggle?.addEventListener("change", async () => {
+  const url = algoToggle.checked ? "/api/engine/start" : "/api/engine/stop";
+  await fetch(`${API_BASE}${url}`, { method: "POST", credentials: "include" });
+  refreshHeader();
+});
+
+// --- Emergency Stop ---
+document.getElementById("btnEmergency")?.addEventListener("click", async () => {
+  if (!confirm("EMERGENCY STOP will halt trading and square-off. Continue?")) return;
+  await fetch(`${API_BASE}/api/engine/emergency-stop`, { method: "POST", credentials: "include" });
+  alert("Emergency Stop activated.");
+  refreshHeader();
+  refreshPositions();
+});
+
+// --- Risk slider presets + form save ---
+const riskRange = document.getElementById("riskRange");
+const riskBadge = document.getElementById("riskBadge");
+function applyRiskPreset(level) {
+  const sl = document.getElementById("slPct");
+  const tp = document.getElementById("tpPct");
+  const labels = ["Low","Medium","High"];
+  if (riskBadge) riskBadge.textContent = labels[level] || "";
+  if (sl && tp) {
+    if (level === 0) { sl.value = 1; tp.value = 2; }
+    if (level === 1) { sl.value = 2; tp.value = 5; }
+    if (level === 2) { sl.value = 3; tp.value = 10; }
+  }
+}
+riskRange?.addEventListener("input", () => applyRiskPreset(Number(riskRange.value)));
+
+// Save Algo settings
+document.getElementById("algoForm")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const payload = {
+    capitalPerTrade: Number((document.getElementById("capPerTrade")?.value || "10000").replace(/[^0-9.]/g,"")) || 10000,
+    maxPositions: Number(document.getElementById("maxPositions")?.value || 3),
+    stopLossPct: Number(document.getElementById("slPct")?.value || 2),
+    targetPct: Number(document.getElementById("tpPct")?.value || 5),
+    symbols: document.getElementById("symbols")?.value || ""
+  };
+  const r = await fetch(`${API_BASE}/api/settings/algo`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+    body: JSON.stringify(payload)
+  });
+  if (!r.ok) return alert("Failed to save settings");
+  alert("Settings updated.");
+});
+
+// --- Positions refresh on Dashboard ---
+async function refreshPositions() {
+  const r = await fetch(`${API_BASE}/api/positions`, { credentials: "include" });
+  if (!r.ok) return;
+  const list = await r.json();
+  if (window.renderPositions) renderPositions(list);
+}
+async function refreshDashboard() {
+  await Promise.all([refreshHeader(), refreshKpis(), refreshMarketTable("dash-md-body")]);
+  await refreshPositions();
+}
+
