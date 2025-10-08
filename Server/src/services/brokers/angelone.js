@@ -4,6 +4,7 @@
 // NOTE: Uses credential login (client_code, password, TOTP)
 
 import { BrokerToken } from "../../models/BrokerToken.js";
+import { BrokerAdapter } from "./AdapterBase.js";
 
 function softRequireEnv(name) {
   const v = process.env[name];
@@ -128,3 +129,33 @@ export const AngelAdapter = {
     return () => {};
   },
 };
+
+export class MockAdapter extends BrokerAdapter {
+  constructor(opts = {}) {
+    super("mock");
+  }
+  async init() { return true; }
+  async loginUrl(userId = "default") {
+    // In mock, login is instant – just return the callback URL
+    return loginUrl(userId);
+  }
+  async handleCallback(userId = "default", query = {}) {
+    return handleCallback(userId, query);
+  }
+  async isAuthenticated(userId = "default") {
+    return isAuthenticated(userId);
+  }
+  async placeOrder(userId, order) {
+    return placeOrder(userId, order);
+  }
+  async getPositions(userId) {
+    return getPositions(userId);
+  }
+  async getOrders(userId) {
+    return getOrders(userId);
+  }
+  async connectMarketWS(params) {
+    // For completeness, expose the market data stream connector
+    return connectMarketWS(params);
+  }
+}
