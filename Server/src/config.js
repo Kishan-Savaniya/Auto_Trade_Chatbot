@@ -74,7 +74,7 @@ export const config = {
     streamPushMs: toNum(process.env.STREAM_PUSH_MS, 900),            // SSE throttle
   },
   broker: {
-    provider: (process.env.BROKER_PROVIDER || "paper").toLowerCase(), // paper|kite|upstox|angel
+    provider: (process.env.BROKER_PROVIDER || "kite").toLowerCase(),   // default to Zerodha (Kite Connect)
   },
 
   // dev override to force market open for demo/testing
