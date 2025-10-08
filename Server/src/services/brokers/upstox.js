@@ -20,6 +20,8 @@
 
 import { URL } from "url";
 import WebSocket from "ws";
+import { BrokerAdapter } from "./AdapterBase.js";
+
 
 // ---------------------------- Token storage layer -----------------------------
 // Use DB (BrokerToken via services/tokenStore.js) if available; otherwise fallback to memory.
@@ -327,4 +329,32 @@ export function connectMarketWS({ userId = "default", instruments = [], onTick, 
     try { ws?.close(); } catch {}
     onStatus?.("disconnected");
   };
+}
+
+export class UpstoxAdapter extends BrokerAdapter {
+  constructor(opts = {}) {
+    super("upstox");
+  }
+  async init() { return true; }
+  async loginUrl(userId = "default") {
+    return loginUrl(userId);
+  }
+  async handleCallback(userId = "default", query = {}) {
+    return handleCallback(userId, query);
+  }
+  async isAuthenticated(userId = "default") {
+    return isAuthenticated(userId);
+  }
+  async refreshTokens(userId = "default") {
+    return refreshTokens(userId);
+  }
+  async placeOrder(userId, order) {
+    return placeOrder(userId, order);
+  }
+  async getPositions(userId) {
+    return getPositions(userId);
+  }
+  async getOrders(userId) {
+    return getOrders(userId);
+  }
 }
