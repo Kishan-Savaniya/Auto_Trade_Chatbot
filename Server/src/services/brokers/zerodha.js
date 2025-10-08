@@ -5,6 +5,8 @@
 
 import fs from "fs";
 import path from "path";
+import { BrokerAdapter } from "./AdapterBase.js";
+
 
 // ---- Lazy-load sdk to avoid hard dependency errors at boot ----
 let KiteConnect = null;
@@ -234,4 +236,34 @@ export async function getOrders(userId) {
     status: o.status,
     createdAt: new Date(o.order_timestamp || Date.now()),
   }));
+}
+
+export class ZerodhaAdapter extends BrokerAdapter {
+  constructor(opts = {}) {
+    super("zerodha");
+    // (We could initialize API keys or other config here if needed; ensureApiKey() will run on usage)
+  }
+  async init() {
+    // Optionally perform any setup; for now, no special init needed (could check API connectivity).
+    return true;
+  }
+  async loginUrl(userId = "default") {
+    return loginUrl(userId);  // call the module's exported function
+  }
+  async handleCallback(userId = "default", query = {}) {
+    return handleCallback(userId, query);
+  }
+  async isAuthenticated(userId = "default") {
+    return isAuthenticated(userId);
+  }
+  async placeOrder(userId, order) {
+    return placeOrder(userId, order);
+  }
+  async getPositions(userId) {
+    return getPositions(userId);
+  }
+  async getOrders(userId) {
+    return getOrders(userId);
+  }
+  // (Additional methods from Zerodha’s API can be added as needed)
 }
