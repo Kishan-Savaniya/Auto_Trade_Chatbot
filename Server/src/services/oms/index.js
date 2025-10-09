@@ -1,33 +1,17 @@
-import { v4 as uuid } from "uuid";
-import { Order } from "../../models/Order.js";
-import { getBrokerAdapter, getBrokerName } from "../providers.js";
-
-export async function place(userId, order) {
-  const idemKey = order.idemKey || uuid();
-  const existing = await Order.findOne({ idemKey });
-  if (existing) return existing;
-
-  const broker = getBrokerName();
-  const adapter = getBrokerAdapter();
-
-  const doc = await Order.create({ ...order, userId, idemKey, broker, status: "PENDING" });
-  try {
-    const res = await adapter.placeOrder?.(userId, order);
-    await Order.updateOne({ _id: doc._id }, { $set: { brokerOrderId: res?.brokerOrderId || null, status: res?.warning ? "PENDING" : "OPEN" } });
-    return await Order.findById(doc._id);
-  } catch (e) {
-    await Order.updateOne({ _id: doc._id }, { $set: { status: "REJECTED" } });
-    throw e;
-  }
+// Server/src/services/oms/index.js
+import { getBrokerAdapter } from "../providers.js";
+import crypto from "node:crypto";
+import { checkOrder } from "../riskService.js";
+const seen = new Set();
+export function makeIdemKey(userId, payload){ const base=JSON.stringify({userId, ...payload}); return crypto.createHash("sha256").update(base).digest("hex"); }
+export async function place(userId, payload){
+  checkOrder({ symbol:payload.symbol, side:payload.side, qty:payload.qty, estPrice:payload.price||0 });
+  const key = makeIdemKey(userId, payload);
+  if(seen.has(key)) return { ok:true, idempotent:true, key };
+  const A = await getBrokerAdapter();
+  const res = await A.placeOrder(userId, payload);
+  seen.add(key);
+  return { ok:true, key, brokerOrderId: res?.brokerOrderId || res?.id };
 }
-
-export async function cancel(userId, brokerOrderId) {
-  const adapter = getBrokerAdapter();
-  await adapter.cancelOrder?.(userId, brokerOrderId);
-  await Order.updateOne({ brokerOrderId }, { $set: { status: "CANCELLED" } });
-}
-
-export async function modify(userId, brokerOrderId, patch) {
-  const adapter = getBrokerAdapter();
-  await adapter.modifyOrder?.(userId, brokerOrderId, patch);
-}
+export async function modify(){ throw new Error("modify not implemented"); }
+export async function cancel(){ throw new Error("cancel not implemented"); }
