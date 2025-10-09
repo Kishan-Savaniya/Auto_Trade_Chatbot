@@ -43,21 +43,20 @@ export function buildApp() {
 
   // --------------------------- CORS (cookies-safe, single) ---------------------------
   const ALLOW_ORIGINS = buildAllowOrigins();
-  app.use(
+ app.use(
   cors({
     origin: (origin, cb) => {
-      const ALLOW = new Set([
-        "http://localhost:5500",
-        "http://127.0.0.1:5500",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173"
-      ]);
+      const ALLOW = new Set(ALLOW_ORIGINS);  // now dynamic from config/.env
       if (!origin || ALLOW.has(origin)) return cb(null, true);
       return cb(new Error(`CORS blocked origin: ${origin}`), false);
     },
     credentials: true,
+    methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
+    allowedHeaders: ["Content-Type","Authorization"],
+    optionsSuccessStatus: 204,
   })
 );
+
 
   app.use(cookieParser());
   app.use(express.json());

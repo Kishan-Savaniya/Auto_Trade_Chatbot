@@ -752,3 +752,51 @@ async function refreshDashboard() {
   await refreshPositions();
 }
 
+/* =====================  REAL-TIME STREAM (SSE)  ===================== */
+let _evtSrc = null;
+function startMarketStream() {
+  try {
+    if (_evtSrc) { try { _evtSrc.close(); } catch {} _evtSrc = null; }
+    const url = `${API_BASE}/api/market/stream`;
+    _evtSrc = new EventSource(url, { withCredentials: true });
+    _evtSrc.onmessage = (ev) => {
+      const payload = JSON.parse(ev.data || "{}");
+      if (Array.isArray(payload.rows)) {
+        const active = document.querySelector(".view.active")?.dataset.view;
+        const targetId = active === "market" ? "marketTableBody" : "dash-md-body";
+        const body = document.getElementById(targetId);
+        if (body) {
+          body.innerHTML = "";
+          payload.rows.forEach((r) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${r.symbol}</td>
+              <td>${fmtINR(r.ltp)}</td>
+              <td style="color:${Number(r.change)>=0?"var(--brand)":"var(--danger)"}">${Number(r.change).toFixed(2)}%</td>
+              <td>${r.rsi}</td>
+              <td>${r.macd}</td>
+              <td>${r.signal}</td>`;
+            body.appendChild(tr);
+          });
+        }
+        // update snapshot section
+        if (typeof CURRENT_TICKER !== "undefined") {
+          const r = payload.rows.find(x=>x.symbol===CURRENT_TICKER);
+          if (r) {
+            const a=document.getElementById("md-rsi");
+            const b=document.getElementById("md-macd");
+            if(a)a.textContent=String(r.rsi);
+            if(b)b.textContent=String(Number(r.macd).toFixed(2));
+          }
+        }
+      }
+    };
+    _evtSrc.onerror = () => {
+      try{_evtSrc.close();}catch{};
+      _evtSrc=null;
+      setTimeout(startMarketStream,3000); // auto-reconnect
+    };
+  } catch {}
+}
+document.addEventListener("DOMContentLoaded",()=>setTimeout(startMarketStream,800));
+/* =====================  END REAL-TIME STREAM (SSE)  ===================== */
