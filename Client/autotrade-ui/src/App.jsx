@@ -1,106 +1,93 @@
-import { useEffect, useMemo, useState } from "react";
-import { api } from "./api";
-import BrokerConnect from "./components/BrokerConnect";
-import Positions from "./components/Positions";
-import MarketTable from "./components/MarketTable";
-import OrderBlotter from "./components/OrderBlotter";
-import MarketChart from "./components/MarketChart";
-import { useMarketStream } from "./hooks/useMarketStream";
+import React, { useEffect, useState } from "react";
+import { login, signup, me } from "./api";
+
+const BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
 
 export default function App(){
-  const [auth, setAuth] = useState({ loggedIn:false });
-  const [engine, setEngine] = useState({ running:false });
-  const [positions, setPositions] = useState([]);
-  const [orders, setOrders] = useState([]);
+  const [authed, setAuthed] = useState(false);
+  const [tab, setTab] = useState("login");
+  const [u,setU]=useState(""); const [p,setP]=useState("");
+  const [rows,setRows]=useState([]);
+  const [orders,setOrders]=useState([]);
+  const [broker,setBroker]=useState({ name:"mock", connected:true });
+  const [engine,setEngine]=useState({ running:false });
 
-  const { rows: marketRows, status: streamStatus } = useMarketStream({ pollMs: 5000 });
-  const chartData = useMemo(()=>{
-    const s = marketRows[0]?.symbol || "NIFTY";
-    return { symbol: s, data: marketRows.filter(r=>r.symbol===s).map(r=>({ ltp:r.ltp })) };
-  }, [marketRows]);
-
-  async function refreshAll(){
-    try{ setEngine(await api.engineState()); }catch{}
-    try{ setPositions(await api.positions()); }catch{}
-    try{ setOrders(await api.orders()); }catch{}
-  }
-
+  // --- SSE for live market ---
   useEffect(()=>{
-    api.me().then(m=>{ if(m?.ok || m?.user){ setAuth({ loggedIn:true }); refreshAll(); } });
-  }, []);
+    if(!authed) return;
+    const ev = new EventSource(BASE+"/api/stream/sse", { withCredentials:true });
+    ev.onmessage = (e)=>{ try{ const data = JSON.parse(e.data); setRows(data.rows||[]); }catch{} };
+    return ()=> ev.close();
+  },[authed]);
 
-  if(!auth.loggedIn){
-    return <AuthScreen onLoggedIn={()=>{ setAuth({loggedIn:true}); refreshAll(); }} />;
+  const fetchOrders = () => fetch(BASE+"/api/orders", { credentials:"include" }).then(r=>r.json()).then(setOrders).catch(()=>{});
+  const fetchBroker = () => fetch(BASE+"/api/broker/status", { credentials:"include" }).then(r=>r.json()).then(setBroker).catch(()=>{});
+  const fetchEngine = () => fetch(BASE+"/api/engine/state", { credentials:"include" }).then(r=>r.json()).then(setEngine).catch(()=>{});
+
+  useEffect(()=>{ me().then(x=>setAuthed(!!x.ok)).catch(()=>{}); },[]);
+  useEffect(()=>{ if(!authed) return;
+    fetchOrders(); fetchBroker(); fetchEngine();
+    const i2=setInterval(fetchOrders,4000);
+    const i3=setInterval(fetchBroker,5000);
+    const i4=setInterval(fetchEngine,5000);
+    return ()=>{ clearInterval(i2);clearInterval(i3);clearInterval(i4); };
+  },[authed]);
+
+  const startEngine = ()=> fetch(BASE+"/api/engine/start",{method:"POST",credentials:"include"}).then(fetchEngine);
+  const stopEngine  = ()=> fetch(BASE+"/api/engine/stop",{method:"POST",credentials:"include"}).then(fetchEngine);
+
+  if(!authed){
+    return <div style={{padding:30,color:"#ddd",fontFamily:"system-ui"}}>
+      <h1>Auto Trade</h1>
+      <div>
+        <button onClick={()=>setTab("login")}>Login</button>
+        <button onClick={()=>setTab("signup")}>Register</button>
+      </div>
+      {tab==="login"?(
+        <div style={{marginTop:10}}>
+          <input placeholder="username" value={u} onChange={e=>setU(e.target.value)}/>
+          <input placeholder="password" type="password" value={p} onChange={e=>setP(e.target.value)}/>
+          <button onClick={()=>login(u,p).then(()=>setAuthed(true)).catch(e=>alert(e.message))}>Login</button>
+        </div>
+      ):(
+        <div style={{marginTop:10}}>
+          <input placeholder="username" value={u} onChange={e=>setU(e.target.value)}/>
+          <input placeholder="password" type="password" value={p} onChange={e=>setP(e.target.value)}/>
+          <button onClick={()=>signup({username:u,password:p}).then(()=>setAuthed(true)).catch(e=>alert(e.message))}>Register</button>
+        </div>
+      )}
+    </div>;
   }
 
-  return (
-    <div style={{ padding:16 }}>
-      <header className="card header">
-        <div style={{ display:"flex", gap:12, alignItems:"center" }}>
-          <h1 style={{ margin:0 }}>Auto Trade</h1>
-          <span style={{ fontSize:14, opacity:.8 }}>Stream: {streamStatus}</span>
-        </div>
-        <div style={{ display:"flex", gap:12, alignItems:"center" }}>
-          <label>
-            <input
-              type="checkbox"
-              checked={!!engine.running}
-              onChange={async e=>{
-                const run = e.target.checked;
-                try{ run ? await api.engineStart() : await api.engineStop(); }catch{}
-                setEngine(await api.engineState());
-              }}
-            />{" "}
-            Engine {engine.running ? "ACTIVE" : "INACTIVE"}
-          </label>
-          <BrokerConnect />
-          <button onClick={refreshAll}>Refresh</button>
-        </div>
-      </header>
+  return <div style={{padding:20,fontFamily:"system-ui"}}>
+    <h2>Dashboard</h2>
 
-      <div className="grid" style={{ marginTop:16 }}>
-        <div className="card">
-          <MarketChart data={chartData.data} symbol={chartData.symbol} />
-        </div>
-        <div className="card">
-          <Positions rows={positions} />
-        </div>
-        <div className="card">
-          <MarketTable rows={marketRows} />
-        </div>
-        <div className="card">
-          <OrderBlotter orders={orders} />
-        </div>
+    <div style={{display:"flex", gap:24}}>
+      <div>
+        <h3>Broker</h3>
+        <div>Name: {broker.name} | Connected: {String(broker.connected)}</div>
+      </div>
+      <div>
+        <h3>Engine</h3>
+        <div>Running: {String(engine.running)}</div>
+        <button onClick={startEngine} disabled={engine.running}>Start</button>
+        <button onClick={stopEngine} disabled={!engine.running}>Stop</button>
       </div>
     </div>
-  );
-}
 
-function AuthScreen({ onLoggedIn }){
-  const [form, setForm] = useState({ username:"admin", password:"admin" });
-  const [busy, setBusy] = useState(false);
-  const submit = async () => {
-    if(busy) return;
-    setBusy(true);
-    try{
-      const r = await api.login(form.username, form.password);
-      if(r?.ok || r?.token){ onLoggedIn(); }
-      else alert(r?.error || "Login failed");
-    }catch(e){ alert(e?.message || "Login error"); }
-    setBusy(false);
-  };
-  return (
-    <div style={{ display:"grid", placeItems:"center", height:"100vh" }}>
-      <div className="card" style={{ width:360 }}>
-        <h2>Auto Trade</h2>
-        <div style={{ display:"grid", gap:8 }}>
-          <label>Username</label>
-          <input value={form.username} onChange={e=>setForm({...form, username:e.target.value})}/>
-          <label>Password</label>
-          <input type="password" value={form.password} onChange={e=>setForm({...form, password:e.target.value})}/>
-          <button onClick={submit} disabled={busy}>{busy ? "Signing in..." : "Login"}</button>
-        </div>
-      </div>
-    </div>
-  );
+    <h3 style={{marginTop:20}}>Market (LTP)</h3>
+    <table border="1" cellPadding="6">
+      <thead><tr><th>Symbol</th><th>LTP</th></tr></thead>
+      <tbody>{rows.map(r=><tr key={r.symbol}><td>{r.symbol}</td><td>{r.ltp}</td></tr>)}</tbody>
+    </table>
+
+    <h3 style={{marginTop:20}}>Orders</h3>
+    <table border="1" cellPadding="6">
+      <thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>Status</th></tr></thead>
+      <tbody>{(orders||[]).map(o=><tr key={o._id || o.brokerOrderId}>
+        <td>{o.createdAt?new Date(o.createdAt).toLocaleTimeString():"-"}</td>
+        <td>{o.symbol}</td><td>{o.side}</td><td>{o.qty}</td><td>{o.price ?? ""}</td><td>{o.status}</td>
+      </tr>)}</tbody>
+    </table>
+  </div>;
 }

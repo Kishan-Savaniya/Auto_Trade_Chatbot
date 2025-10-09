@@ -1,0 +1,18 @@
+{
+  "RELIANCE": {
+    "token": 738561,
+    "exchange": "NSE"
+  },
+  "TCS": {
+    "token": 2953217,
+    "exchange": "NSE"
+  },
+  "INFY": {
+    "token": 408065,
+    "exchange": "NSE"
+  },
+  "HDFCBANK": {
+    "token": 341249,
+    "exchange": "NSE"
+  }
+}

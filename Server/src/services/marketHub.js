@@ -1,17 +1,11 @@
-// Server/src/services/marketHub.js
-import EventEmitter from "events";
-import { getBrokerAdapter, getBrokerName } from "./providers.js";
+import EventEmitter from "eventemitter3";
+import { getBrokerAdapter } from "./providers.js";
 export const marketBus = new EventEmitter();
-let _stop;
-export async function startMarketFeed(symbols = []){
-  if(_stop){ try{_stop();}catch{} _stop=null; }
+let stop;
+export async function startMarketFeed(symbols=[]){
+  if(stop){ try{ stop(); }catch{} }
   const A = await getBrokerAdapter();
-  const unsub = A.connectMarketWS({
-    instruments: symbols,
-    onTick: (t)=>marketBus.emit("tick", t),
-    onStatus: (st, err)=>marketBus.emit("feed:status", { broker: getBrokerName(), st, err: err?.message })
-  });
-  _stop = ()=>unsub && unsub();
-  return _stop;
+  stop = A.connectMarketWS({ instruments: symbols, onTick:(t)=>marketBus.emit("tick",t), onStatus:(s,e)=>marketBus.emit("feed", { s, e: e?.message }) });
+  return ()=> stop && stop();
 }
-export function stopMarketFeed(){ if(_stop){ try{_stop();}catch{} _stop=null; } }
+export function stopMarketFeed(){ if(stop){ try{ stop(); }catch{} stop=null; } }
